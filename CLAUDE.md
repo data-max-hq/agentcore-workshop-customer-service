@@ -1,43 +1,74 @@
 # agentcore-workshop-customer-service
 
-Hands-on workshop teaching AWS attendees the basics of **Amazon Bedrock AgentCore** through a customer-service agent. The repo is the sample app attendees build on and break.
+A **minimal Amazon Bedrock AgentCore sample**: a customer-service **refund agent**
+used to teach AgentCore. It runs locally with one command and deploys to managed
+AgentCore services when you want. Teaching staff deliver the concepts and live
+help; this repo is the hands-on spine.
 
-## Purpose
+## What it is (current shape)
 
-Teach how an agentic AI product behaves in production: scaling, security, tenant/data isolation, and cost control. AgentCore is the focus; we also touch other AWS services, open-source tools, and open-weights models.
+The whole agent is small and lives at the repo root (there is **no** nested
+`RefundAgent/` wrapper anymore — it was flattened):
 
-Workshop themes (what code and exercises should illustrate):
-- Crash recovery, retries, high availability
-- Where agent memory and execution state live — AgentCore Memory vs DynamoDB
-- Auth for long-running tasks; keeping tenants isolated
-- Guardrails across model providers; central access/usage/cost management
-- Observability — AgentCore Observability vs Langfuse
-- Runtime resources and cost; AgentCore Gateway vs self-hosted MCP
-- Model routing for cost efficiency
+```
+app/RefundAgent/
+  main.py            the entire agent: BedrockAgentCoreApp entrypoint, 3 tools,
+                     in-memory ORDERS dict, streamed (SSE) replies
+  memory/session.py  AgentCore Memory wiring — returns None (no-op) locally
+  model/load.py      the Bedrock model (Claude)
+infra/payment/       fake-payout Lambda (Gateway target) — a mock, no real money
+agentcore/           agentcore.json (runtime + PaymentGateway + RefundMemory) + CDK
+workshop/            facilitator/attendee material (README, LABS, STAFF)
+Makefile             make dev / make infra-*
+```
 
-The hands-on section walks through **deliberate failure scenarios**: investigate what went wrong, fix it, re-test. Some code will be intentionally broken or naive — confirm before "fixing" something that may be a teaching exercise.
+- **No Docker, no database** — orders are an in-memory dict in `main.py`.
+- **Memory and Gateway are wired but env-var-guarded**, so they are inert locally
+  and activate only when deployed:
+  - `MEMORY_REFUNDMEMORY_ID` unset → conversation lives in an in-process dict;
+    set (by `agentcore deploy`) → **AgentCore Memory**.
+  - `PAYMENT_GATEWAY_URL` unset → the in-process `issue_refund` tool does the
+    payout; set → the payout is the managed **Gateway Lambda** (`infra/`).
+- Identity: `customer_id` comes from the request, defaulting to `alice` locally
+  (`LOCAL_DEV_CUSTOMER` to change). Real JWT identity is deferred to deploy.
 
-## Audience
+## Run it
 
-Workshop attendees, not seasoned maintainers. Optimize example code for **readability over cleverness**: obvious flow, minimal abstraction, comments where a concept is being taught. This is one place a little extra explanation earns its keep.
+From the **repo root** (not a subdir):
+
+```bash
+npm install -g @aws/agentcore@0.31.0   # pinned; the CLI is pre-1.0
+make dev                               # chat UI at http://localhost:8081
+```
+
+Use the **npm `@aws/agentcore` CLI**, never the deprecated Python
+`bedrock-agentcore-starter-toolkit` (it doesn't understand this project layout).
+
+## Deploy (optional, to a provided AWS account)
+
+`make infra-deploy` runs `agentcore deploy` → CDK, creating the runtime + Gateway
++ Lambda + Memory. `make infra-preview` is a no-spend dry-run; `make infra-down`
+tears it back down. Config is validated and **CDK-synth-clean**, but a real
+`agentcore deploy` has **not been run yet** — the rehearsal checklist and its
+three open questions are in [`workshop/STAFF.md`](workshop/STAFF.md).
+
+## Working style for this repo
+
+- **Readability over cleverness.** This is example code people read to learn:
+  obvious flow, minimal abstraction, a comment where a concept is taught.
+- **It was deliberately minimized.** Don't re-add complexity that was removed:
+  the custom `web/` console (the AWS agent inspector on :8081 covers it),
+  DynamoDB/Docker, or the old "four seams" scaffolding. Simplest thing that
+  works wins.
+- Keep the local path working with **no cloud** — new managed features stay
+  env-var-guarded so `make dev` never needs AWS.
 
 ## Tooling in this environment
 
-- **Skills**: `aws-agents` (`agents-get-started`, `agents-build`, `agents-deploy`, `agents-debug`, `agents-harden`, `agents-optimize`, `agents-connect`, `agents-pay`) and `aws-core` (`amazon-bedrock` covers AgentCore/Harness, plus `aws-iam`, `aws-observability`, `aws-database`, `aws-security`, cost skills). Invoke the matching skill before building or debugging agent code.
-- **MCP**: `aws-core` (`run_script` for AWS API calls — prefer it over the AWS CLI in Bash) and `awsknowledge` (AWS docs/skill lookup).
-
-## Status
-
-As of 2026-09-29: the baseline refund bot is built and working in `RefundAgent/`
-(Strands + Bedrock, run locally via `agentcore dev`; state in DynamoDB Local via
-Docker). Nothing is deployed to AWS. All four failure domains are implemented
-correctly, each at a `# WORKSHOP SEAM` marker to be broken later:
-
-1. Idempotency — stable idempotency key to the payment gateway (`tools.py issue_refund`)
-2. Session/authoritative status — `Sessions` table + status read from the `Payments` ledger (`store.py`, `tools.py`)
-3. Tenant isolation — `customer_id` from request context, tools check ownership (`tools.py`)
-4. Timeout/retry/observability — `call_with_timeout` + structured tool logs (`payment_gateway.py`)
-
-Run steps and the seam-by-seam breakdown: `RefundAgent/README.md`. Verify with
-`RefundAgent/demo.sh`. Deferred to a later (deploy) phase: AgentCore Memory, real
-JWT identity, AgentCore Observability/CloudWatch.
+- **Skills**: `aws-agents` (`agents-get-started`, `agents-build`, `agents-deploy`,
+  `agents-debug`, `agents-harden`, `agents-optimize`, `agents-connect`,
+  `agents-pay`) and `aws-core` (`amazon-bedrock` covers AgentCore, plus
+  `aws-iam`, `aws-observability`, `aws-security`, cost skills). Invoke the
+  matching skill before building or debugging agent code.
+- **MCP**: `aws-core` (`run_script` for AWS API calls — prefer over the AWS CLI
+  in Bash) and `awsknowledge` (AWS docs/skill lookup).

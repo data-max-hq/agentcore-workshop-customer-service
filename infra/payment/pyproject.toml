@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "payment-gateway-lambda"
+version = "0.1.0"
+description = "Fake payout API exposed as an AgentCore Gateway Lambda tool"
+requires-python = ">=3.12"
+dependencies = []  # stdlib only
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

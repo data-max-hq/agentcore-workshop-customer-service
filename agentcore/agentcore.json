@@ -1,0 +1,105 @@
+{
+  "$schema": "https://schema.agentcore.aws.dev/v1/agentcore.json",
+  "name": "RefundAgent",
+  "version": 1,
+  "managedBy": "CDK",
+  "tags": {
+    "agentcore:created-by": "agentcore-cli",
+    "agentcore:project-name": "RefundAgent"
+  },
+  "runtimes": [
+    {
+      "name": "RefundAgent",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "app/RefundAgent/",
+      "runtimeVersion": "PYTHON_3_14",
+      "networkMode": "PUBLIC",
+      "protocol": "HTTP"
+    }
+  ],
+  "memories": [
+    {
+      "name": "RefundMemory",
+      "eventExpiryDuration": 30,
+      "strategies": []
+    }
+  ],
+  "knowledgeBases": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": [
+    {
+      "name": "PaymentGateway",
+      "protocolType": "MCP",
+      "description": "Gateway for PaymentGateway",
+      "targets": [
+        {
+          "name": "payment",
+          "targetType": "lambda",
+          "toolDefinitions": [
+            {
+              "name": "process_refund",
+              "description": "Issue a (simulated) refund for a delivered order. Safe to retry.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "order_id": {
+                    "type": "string",
+                    "description": "The order identifier, e.g. \"A-1001\"."
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "Refund amount in dollars."
+                  }
+                },
+                "required": [
+                  "order_id",
+                  "amount"
+                ]
+              }
+            },
+            {
+              "name": "get_refund_status",
+              "description": "Report the (simulated) settled status of a refund.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "order_id": {
+                    "type": "string",
+                    "description": "The order identifier, e.g. \"A-1001\"."
+                  }
+                },
+                "required": [
+                  "order_id"
+                ]
+              }
+            }
+          ],
+          "compute": {
+            "host": "Lambda",
+            "implementation": {
+              "language": "Python",
+              "path": "infra/payment",
+              "handler": "handler.lambda_handler"
+            },
+            "pythonVersion": "PYTHON_3_12",
+            "timeout": 30,
+            "memorySize": 128
+          }
+        }
+      ],
+      "authorizerType": "NONE",
+      "enableSemanticSearch": true,
+      "exceptionLevel": "NONE"
+    }
+  ],
+  "policyEngines": [],
+  "configBundles": [],
+  "abTests": [],
+  "harnesses": [],
+  "datasets": [],
+  "capacityProviders": [],
+  "payments": []
+}
