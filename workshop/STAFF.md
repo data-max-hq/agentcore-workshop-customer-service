@@ -1,5 +1,93 @@
 # Staff notes — read before the workshop
 
+# Console workshop (refund-agent-workshop.ipynb)
+
+## Errors we've hit (symptom → cause → fix)
+
+| Attendee sees | Cause | Fix |
+|---|---|---|
+| Gateway target fails: *"Gateway service is not authorized to perform AssumeRole on Gateway role. Update trust policy and retry"* | Usually: the console just created the Gateway role and IAM hasn't propagated yet | **Wait ~1 min and retry creating the target.** That fixed it for us. If it persists: check the role's trust policy ([A](#a-gateway-role--trust-policy)), and that its `aws:SourceArn` region matches the Gateway's region |
+| Harness test chat: *"Failed to load tool … Failed to start MCP client … 403 Forbidden"* | The Gateway refused the agent's connection. Either the Gateway's inbound auth is **JWT/Cognito** (quick start default — the agent sends no token), or it's **IAM** and the Harness role lacks `InvokeGateway` | Check the Gateway's inbound auth. JWT → recreate the Gateway with **IAM** auth. IAM → add policy [C](#c-harness-execution-role--call-the-gateway) to the **Harness execution role**. Wait a minute, reload the chat |
+| Tool call errors / Lambda never invoked (nothing in its CloudWatch logs) | The Gateway role can't invoke the Lambda | Add policy [B](#b-gateway-role--invoke-the-lambda) to the **Gateway service role** (console-created roles usually have it — check first) |
+| Lambda console **Test** returns `Unknown tool: ` | The test event has no `tool_name` (the console can't set `client_context` the way the Gateway does) | Add `"tool_name": "find_orders"` (or `get_order_transaction`) to the test event |
+| `Runtime.ImportModuleError` / handler not found | Code file and handler setting don't match | File must be `lambda_function.py` with handler `lambda_function.lambda_handler` (the console default) |
+| Agent answers without calling a tool, or makes up an order | Tools not attached, or the prompt doesn't push it to use them | Check the Gateway is in the Harness's tools; check the system prompt from step 1 is in place |
+
+## The IAM policies (copy-paste)
+
+Replace `<REGION>`, `<ACCOUNT_ID>`, `<FUNCTION_NAME>`, `<GATEWAY_ARN>`.
+
+### A. Gateway role — trust policy
+*IAM → Roles → the Gateway's service role → Trust relationships → Edit.* Lets the Gateway service assume the role.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": { "Service": "bedrock-agentcore.amazonaws.com" },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": { "aws:SourceAccount": "<ACCOUNT_ID>" },
+        "ArnLike": { "aws:SourceArn": "arn:aws:bedrock-agentcore:<REGION>:<ACCOUNT_ID>:gateway/*" }
+      }
+    }
+  ]
+}
+```
+
+### B. Gateway role — invoke the Lambda
+*Same role → Permissions → Add permissions → Create inline policy → JSON.*
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:<REGION>:<ACCOUNT_ID>:function:<FUNCTION_NAME>"
+    }
+  ]
+}
+```
+
+### C. Harness execution role — call the Gateway
+*IAM → Roles → the Harness's execution role → Add permissions → Create inline policy → JSON.* Only needed with **IAM** inbound auth on the Gateway. This one is in the attendee notebook (step 4).
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "bedrock-agentcore:InvokeGateway",
+      "Resource": "<GATEWAY_ARN>"
+    }
+  ]
+}
+```
+
+**Which role is which:** the *Gateway service role* is what the Gateway uses to call **out** (to the Lambda) — policies A + B. The *Harness execution role* is what the agent uses — policy C lets it call **in** to the Gateway.
+
+## The tool schema, in more depth
+
+The notebook gives attendees the short version (name / description / inputSchema). For questions:
+
+- **The model reads it, the Lambda doesn't.** The Gateway turns it into the MCP `tools/list` the agent sees. Changing a `description` changes agent behavior without touching code — a good live demo.
+- **Names get a target prefix.** The agent sees `<target-name>___find_orders`. The Gateway passes that full name to the Lambda in `context.client_context.custom["bedrockAgentCoreToolName"]`; the handler routes on the part after `___`, so the target can be named anything.
+- **`name` must match a tool registered in the Lambda** (`@tool("find_orders")`). A mismatch → the Lambda returns `Unknown tool`.
+- **`required`** is enforced on the model's side, not the Lambda's — the handler still checks its own arguments (`Missing required parameter …`).
+- **Inline vs S3:** same JSON either way; inline is simplest in the console.
+- **Arguments arrive as the Lambda `event`** — just the argument dict, e.g. `{"customer_id": "alice", "item_query": "keyboard"}`.
+
+---
+
+# CLI / IaC path (not used in the console workshop)
+
+The notes below are for the original `agentcore` CLI + CDK setup in this repo.
+
 ## Gotchas cheat sheet (symptom → cause → fix)
 
 | Attendee sees | Cause | Fix |

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "find_orders",
+    "description": "Find a customer's orders, optionally filtered by item name. Use when the customer doesn't give an order id.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "customer_id": {
+          "type": "string",
+          "description": "The customer whose orders to search, e.g. \"alice\"."
+        },
+        "item_query": {
+          "type": "string",
+          "description": "Optional text to match in the item name, e.g. \"keyboard\"."
+        }
+      },
+      "required": ["customer_id"]
+    }
+  },
+  {
+    "name": "get_order_transaction",
+    "description": "Get one order's status, payment transaction, and any existing refund.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "order_id": {
+          "type": "string",
+          "description": "The order identifier, e.g. \"A-1001\"."
+        }
+      },
+      "required": ["order_id"]
+    }
+  }
+]

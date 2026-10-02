@@ -5,6 +5,7 @@ agent (the refund bot — see the [top-level README](../README.md)). Concepts
 and live help are delivered by **teaching staff**; these docs are just the
 hands-on spine.
 
+- **[refund-agent-workshop.ipynb](refund-agent-workshop.ipynb)** — the console-based workshop guide (Harness → Lambda → Gateway → tools). No code to run.
 - **[LABS.md](LABS.md)** — the attendee steps (M1–M5), terse, checkpoint-based.
 - **[STAFF.md](STAFF.md)** — gotchas cheat sheet + the deploy rehearsal checklist. **Staff read this first.**
 
