@@ -3,7 +3,7 @@
 Attendees run a refund agent on their laptop (M1), then build the whole managed
 flow in the AWS console (M2 to M6): a login, an agent, memory, tools, and
 authorization policies. They drive all of it from a small tester app
-(`../app.py`). Teaching staff explain the ideas. These docs are only the steps.
+(`ui/lambda_function.py`) that each attendee deploys as a Lambda in their account. Teaching staff explain the ideas. These docs are only the steps.
 
 <<<<<<< Updated upstream
 - **[refund-agent-workshop.ipynb](refund-agent-workshop.ipynb)** — the console-based workshop guide (Harness → Lambda → Gateway → tools). No code to run.
@@ -76,12 +76,7 @@ npm install -g @aws/agentcore@0.31.0
 make dev                   # from the repo root, chat UI on http://localhost:8081
 ```
 
-Then, from the folder above this repo:
-
-```bash
-pip install -r requirements.txt
-streamlit run app.py       # http://localhost:8501
-```
-
-The tester reads `config.json` next to `app.py`. Attendees fill it in during M2,
-M3, M5 and M6.
+Then the tester: attendees create it in the Lambda console ("The tester app" in
+LABS.md), or staff can run `make ui-deploy` with the attendee's credentials. It finds
+the pool, client, harness and JWT gateway in the account by itself, so there is no
+config file. `make ui-down` removes it.

@@ -1,9 +1,10 @@
 # RefundAgent — thin wrapper over the AgentCore CLI.
 #   make dev            # run the agent locally (chat UI on :8081)
 #   make infra-deploy   # optional: deploy the payment Gateway + Lambda to AWS
+#   make ui-deploy      # host the chat UI on a Lambda URL in the current account
 export AWS_REGION ?= eu-central-1
 
-.PHONY: help check dev infra-preview infra-deploy infra-down
+.PHONY: help check dev infra-preview infra-deploy infra-down ui-deploy ui-down
 help:  ## show this help
 	@grep -hE '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
 
@@ -25,3 +26,13 @@ infra-deploy: check ## deploy the payment Gateway + fake Lambda + Memory to AWS 
 
 infra-down: check ## tear the payment Gateway back down (removes from AWS)
 	agentcore remove gateway --name PaymentGateway -y && agentcore deploy
+
+# --- ui/ : hosted chat UI, one per AWS account (it finds that account's resources itself) ---
+ui-deploy: ## deploy or update the chat UI on a public Lambda URL; prints the URL. OWNER=you sets the owner tag
+	./ui/deploy.sh
+
+ui-down: ## delete the chat UI's Lambda and role from this account
+	-aws lambda delete-function --region $(AWS_REGION) --function-name agentcore-chat-ui
+	-aws iam delete-role-policy --role-name agentcore-chat-ui-role --policy-name lookup-readonly
+	-aws iam detach-role-policy --role-name agentcore-chat-ui-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+	-aws iam delete-role --role-name agentcore-chat-ui-role

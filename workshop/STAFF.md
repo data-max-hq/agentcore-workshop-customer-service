@@ -165,10 +165,12 @@ first login, so the password-change screen can be demonstrated.
 | Cedar: `unable to guarantee safety of access to tag "username"` | `getTag` with no presence check | add `principal.hasTag("username") &&` in front of the comparison |
 | Cedar: `unexpected type: expected Long but saw decimal` | the tool's `amount` is a JSON Schema `number`, which Cedar treats as a decimal | use `context.input.amount.greaterThan(decimal("200.0"))`, not `> 200` |
 | Cedar: `Overly Restrictive: Policy Engine will deny every request for AgentCore::IamEntity` | a bare `principal` in a `forbid` also covers IAM callers, and no `permit` exists for them | scope it: `principal is AgentCore::OAuthUser` |
-| Tools tab: every call fails with code `-32022`, unsupported protocol version | the MCP request is missing the `MCP-Protocol-Version` header | already handled in `app.py`. If they wrote their own client, send `MCP-Protocol-Version: 2025-11-25`. Setting it in the `initialize` params alone is not enough. |
+| Tools tab: every call fails with code `-32022`, unsupported protocol version | the MCP request is missing the `MCP-Protocol-Version` header | already handled in the tester. If they wrote their own client, send `MCP-Protocol-Version: 2025-11-25`. Setting it in the `initialize` params alone is not enough. |
 | Tools tab shows no tools | gateway URL wrong, or the target is not READY | check the URL ends in `/mcp` and the target status |
 | Every Tools call is denied, even their own name | the gateway B target is not named `orders`, so the action names do not match the policies | recreate the target named `orders`, or edit the action names in both policies |
-| Agent asks "what is your customer id?" | `system_prompt` missing from `config.json` | add it, then restart the tester |
+| Agent asks "what is your customer id?" | **Tell the agent who I am** is not ticked | tick it in the tester's Settings |
+| Tester: a resource stays unticked | it has not been created yet, or (shared account) the name does not follow `refund_<initials>` | create it, or fill that field under Settings → Enter manually |
+| Tester: "Lookup failed: AccessDenied" | the `chat-ui-lookup` inline policy is missing from the tester Lambda's role | add it (LABS.md, The tester app, step 5) |
 | Refund denied unexpectedly | over the $200 cap, or the order is not delivered, or it was already refunded | expected. Check the order in the Lambda data. |
 
 ## Resets
@@ -198,7 +200,7 @@ first login, so the password-change screen can be demonstrated.
   target wants. Both gateways use it.
 - `agentcore/policies/identity-binding.cedar` and `refund-cap.cedar` are the two M6
   policies, with comments explaining the three validator errors we hit writing them.
-- `../app.py` is the tester. The Chat tab calls the harness. The Tools tab speaks
+- `ui/lambda_function.py` is the tester, one file holding the page and a `/lookup` route. The Chat tab calls the harness. The Tools tab speaks
   MCP straight to gateway B with the user's token.
 - The chat UI on :8081 during M1 is AWS's own agent inspector. It ships with
   `agentcore dev`. We did not write it.
