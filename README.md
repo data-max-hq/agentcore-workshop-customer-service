@@ -1,6 +1,6 @@
 # Refund Agent — AgentCore Workshop
 
-In this workshop, people build a customer-service **refund agent** on **Amazon Bedrock AgentCore**. A signed-in customer can list their orders, check one, and ask for a refund. Along the way they add a Cognito login, memory, tools behind a gateway, and Cedar policies that refuse to let one customer touch another's orders.
+In this workshop, people build a customer-service **refund agent** on **Amazon Bedrock AgentCore**. A signed-in customer can list their orders, check one, and ask for a refund. Along the way they add a Cognito login, memory, tools behind a gateway, Cedar policies that refuse to let one customer touch another's orders, and a Dogwood policy that remembers what happened earlier in the session.
 
 M1 runs the agent on a laptop. Everything after that is set up by hand in the AWS Console, in **Europe (Frankfurt) eu-central-1**. The code and policies in this repo are pasted into the console as they are; there is no build step.
 
@@ -33,6 +33,8 @@ The Chat path goes through the agent, so the gateway only sees the agent. The To
 | `tools/tool-schema.json` | Tool definitions for both gateway targets | M5, M6 |
 | `policies/identity-binding.cedar` | A customer may only touch their own orders | M6 |
 | `policies/refund-cap.cedar` | No refunds over $200 | M6 |
+| `policies/refund-after-lookup.dogwood` | Dogwood: no refund unless you looked at that order earlier in the session | M6 |
+| `policies/gateway_temporal_iam.json` | Lets gateway B keep the session history Dogwood needs | M6 |
 | `chat/lambda_function.py` | The tester: sign-in page, chat, tools tab, and a lookup that finds your resources | All labs after M1 |
 | `chat/lambda_policy.json` | Lets the tester read the names of your pool, harness and gateway | Tester setup |
 

@@ -170,6 +170,10 @@ first login, so the password-change screen can be demonstrated.
 | Every Tools call is denied, even their own name | the gateway B target is not named `orders`, so the action names do not match the policies | recreate the target named `orders`, or edit the action names in both policies |
 | Agent asks "what is your customer id?" | **Tell the agent who I am** is not ticked | tick it in the tester's Settings |
 | Tester: a resource stays unticked | it has not been created yet, or (shared account) the name does not follow `refund_<initials>` | create it, or fill that field under Settings → Enter manually |
+| Tools tab: every call fails with a validation error about a missing session | a Dogwood policy is attached and the call has no `x-amzn-bedrock-agentcore-policy-session-id` | use the tester's Tools tab, which sends it. Their own clients must send it too |
+| Tools tab: every call fails with `AccessDenied` on `GetWorkloadAccessToken` | gateway B's role lacks the M6 step 11 inline policy | add `policies/gateway_temporal_iam.json` to the gateway's service role |
+| Refund after a lookup is still denied | the lookup was in another policy session, was itself denied, or the refund was sent before the lookup's response was recorded | same session, a lookup that was allowed, and a second's pause |
+| HTTP 409 `ConflictException` right after adding the Dogwood policy | adding or changing a temporal policy ends open sessions | expected. The tester starts a new session and retries by itself |
 | Tester: "Lookup failed: AccessDenied" | the `chat-ui-lookup` inline policy is missing from the tester Lambda's role | add it (LABS.md, The tester app, step 5) |
 | Refund denied unexpectedly | over the $200 cap, or the order is not delivered, or it was already refunded | expected. Check the order in the Lambda data. |
 
@@ -198,8 +202,15 @@ first login, so the password-change screen can be demonstrated.
   out of the Lambda is what lets M5 and M6 look different.
 - `tools/tool-schema.json` is the same four tools in the shape the gateway
   target wants. Both gateways use it.
-- `policies/identity-binding.cedar` and `refund-cap.cedar` are the two M6
+- `policies/identity-binding.cedar` and `refund-cap.cedar` are the two Cedar M6
   policies, with comments explaining the three validator errors we hit writing them.
+- `policies/refund-after-lookup.dogwood` is the Dogwood M6 policy. It is a `forbid`
+  with `unless temporal { formerly … }`, checked against a test engine with
+  `FAIL_ON_ANY_FINDINGS`. It needs a `permit` beside it (identity-binding), or the
+  analyzer rejects it as "Overly Restrictive".
+- The tester's Tools tab goes through its own `/mcp` route, not straight to the
+  gateway: browsers may not send the policy session header Dogwood needs. The
+  gateway still gets the user's token, so policies still see the user.
 - `chat/lambda_function.py` is the tester, one file holding the page and a `/lookup`
   route. The Chat tab calls the harness. The Tools tab speaks
   MCP straight to gateway B with the user's token.

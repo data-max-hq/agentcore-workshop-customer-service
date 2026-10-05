@@ -1,11 +1,15 @@
 # The workshop chat UI, in one file so it can be pasted into the Lambda console.
 # Serves the page (HTML at the bottom), plus GET /lookup which finds this account's Cognito pool,
-# app client, harness and JWT gateway, so nobody has to copy IDs around. In a shared account,
+# app client, harness and JWT gateway, so nobody has to copy IDs around, and POST /mcp which
+# forwards the Tools tab's calls to that gateway (see mcp_forward for why). In a shared account,
 # ?initials=amg picks the ones named by the workshop convention. The page then talks to
 # Cognito / AgentCore straight from the browser.
+import base64
 import json
 import os
 import re
+import urllib.error
+import urllib.request
 
 import boto3
 
@@ -65,6 +69,40 @@ def lookup(initials: str) -> dict:
     return {"found": found, "missing": {k: v for k, v in missing.items() if v}}
 
 
+# Only ever forward to an AgentCore gateway's MCP endpoint, so this can't be used as an open proxy.
+GATEWAY_URL = re.compile(r"https://[a-z0-9-]+\.gateway\.bedrock-agentcore\.[a-z0-9-]+\.amazonaws\.com/mcp")
+FORWARD = ("authorization", "content-type", "accept", "mcp-protocol-version", "mcp-session-id",
+           "x-amzn-bedrock-agentcore-policy-session-id")
+
+
+def mcp_forward(event) -> dict:
+    """Pass one Tools-tab call through to gateway B, with the caller's own token.
+
+    The browser can't call the gateway directly once Dogwood is in play: temporal
+    policies need the x-amzn-bedrock-agentcore-policy-session-id header on every
+    call, and the gateway's CORS rules don't let a browser send it. Going through
+    here also lets the page read Mcp-Session-Id. The gateway still sees the user's
+    JWT, so Cedar and Dogwood still see the user, not this Lambda.
+    """
+    headers = event.get("headers") or {}   # function URLs lower-case header names
+    target = headers.get("x-gateway-url", "")
+    if not GATEWAY_URL.fullmatch(target):
+        return _json(400, {"error": {"message": "Gateway URL should look like https://…gateway.bedrock-agentcore.<region>.amazonaws.com/mcp"}})
+    body = event.get("body") or ""
+    body = base64.b64decode(body) if event.get("isBase64Encoded") else body.encode()
+    req = urllib.request.Request(target, data=body, method="POST",
+                                 headers={k: headers[k] for k in FORWARD if k in headers})
+    try:
+        resp = urllib.request.urlopen(req, timeout=12)
+    except urllib.error.HTTPError as e:   # 4xx/5xx still carry a useful body
+        resp = e
+    with resp:
+        out = {"Content-Type": resp.headers.get("content-type", "application/json")}
+        if resp.headers.get("mcp-session-id"):
+            out["Mcp-Session-Id"] = resp.headers["mcp-session-id"]
+        return {"statusCode": resp.status, "headers": out, "body": resp.read().decode()}
+
+
 def _json(status, body):
     return {"statusCode": status, "headers": {"Content-Type": "application/json"}, "body": json.dumps(body)}
 
@@ -78,6 +116,8 @@ def lambda_handler(event, context):
             return _json(200, lookup(initials))
         except Exception as e:  # surface AWS errors (e.g. missing permission) to the page
             return _json(500, {"error": f"{type(e).__name__}: {e}"})
+    if event.get("rawPath") == "/mcp":
+        return mcp_forward(event)
     return {"statusCode": 200, "headers": {"Content-Type": "text/html; charset=utf-8"}, "body": HTML}
 
 
@@ -240,6 +280,8 @@ HTML = r'''<!doctype html>
       <div id="toolsUi">
         <p class="muted">Calling the gateway <b>as you</b> (<code id="me"></code>). The policy engine binds
           <code>customer_id</code> to your verified username — try someone else's and watch it refuse.</p>
+        <p class="muted">Policy session <code id="psid"></code> — Dogwood rules only see calls made in this session.
+          <button id="bPsid" type="button">New session</button></p>
         <button id="bLoad"><i class="fa-solid fa-rotate"></i> Load tools</button>
         <form id="fTool" class="hidden">
           <label>Tool</label><select id="toolSel"></select>
@@ -267,7 +309,8 @@ const note = (cls, html) => `<div class="msg ${cls}">${html}</div>`;
 const newId = () => crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 
 // tokens live in memory only: a reload signs you out too
-const S = { token: null, username: "", challenge: null, signedInAt: 0, sessionId: newId(), mcpSid: null, tools: [] };
+// policySid groups Tools-tab calls into one Dogwood policy session (the history temporal policies see)
+const S = { token: null, username: "", challenge: null, signedInAt: 0, sessionId: newId(), policySid: newId(), mcpSid: null, tools: [] };
 
 // ---------------------------------------------------------------- config ---
 function loadCfg() {
@@ -359,7 +402,7 @@ function signedIn(result) {
 }
 
 function signOut() {
-  Object.assign(S, { token: null, challenge: null, mcpSid: null, tools: [], sessionId: newId() });
+  Object.assign(S, { token: null, challenge: null, mcpSid: null, tools: [], sessionId: newId(), policySid: newId() });
   $("chat").innerHTML = '<p class="muted">Ask your agent anything to get started.</p>';
   $("toolOut").innerHTML = ""; $("fTool").classList.add("hidden");
   render();
@@ -528,17 +571,22 @@ $("fChat").onsubmit = async e => {
 // ---------------------------------------------------------------- mcp -----
 // The Tools tab talks to the JWT-authorized gateway directly, with YOUR token, so the gateway
 // sees you as AgentCore::OAuthUser and Cedar can bind customer_id to your verified username.
-async function mcpPost(payload) {
+// Goes through this Lambda's /mcp, which forwards to the gateway: a browser may not send the
+// policy session header that Dogwood (temporal) policies need.
+async function mcpPost(payload, retried) {
   const headers = { Authorization: `Bearer ${S.token}`, "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
     // Without this header the gateway assumes MCP 2025-03-26 and rejects every call with -32022.
-    "MCP-Protocol-Version": "2025-11-25" };
+    "MCP-Protocol-Version": "2025-11-25",
+    "X-Gateway-Url": cfg.gateway_url.trim(),
+    "x-amzn-bedrock-agentcore-policy-session-id": S.policySid };
   if (S.mcpSid && S.mcpSid !== "-") headers["Mcp-Session-Id"] = S.mcpSid;
-  const r = await fetch(cfg.gateway_url.trim(), { method: "POST", headers, body: JSON.stringify(payload) });
-  // ponytail: the gateway's CORS doesn't expose Mcp-Session-Id, so this stays null and we run stateless
+  const r = await fetch("mcp", { method: "POST", headers, body: JSON.stringify(payload) });
   if (!S.mcpSid) S.mcpSid = r.headers.get("Mcp-Session-Id") || null;
-  if (!("id" in payload)) return {};
   let body = await r.text();
+  // Adding or changing a temporal policy ends open policy sessions (409): start a fresh one and retry once.
+  if (r.status === 409 && !retried) { newPolicySession(); return mcpPost(payload, true); }
+  if (!("id" in payload)) return {};
   if ((r.headers.get("content-type") || "").includes("text/event-stream"))
     body = body.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("");
   try { return JSON.parse(body); } catch { return { error: { code: r.status, message: body.slice(0, 2000) } }; }
@@ -584,7 +632,9 @@ function renderArgs() {
   }).join("");
 }
 
+function newPolicySession() { S.policySid = newId(); $("psid").textContent = S.policySid.slice(0, 8) + "…"; }
 $("bLoad").onclick = loadTools;
+$("bPsid").onclick = () => { newPolicySession(); $("toolOut").innerHTML = note("info", "New policy session: Dogwood rules start with an empty history."); };
 $("toolSel").onchange = renderArgs;
 $("fTool").onsubmit = async e => {
   e.preventDefault();
@@ -628,6 +678,7 @@ function render() {
     $("who").textContent = S.username; $("me").textContent = actorId(S.token) || S.username;
     $("claims").textContent = JSON.stringify(Object.fromEntries(["iss","client_id","sub","username","token_use","scope","exp"].map(k => [k, c[k] ?? null])), null, 2);
     $("rawTok").textContent = S.token;
+    $("psid").textContent = S.policySid.slice(0, 8) + "…";
     $("toolsNoGw").classList.toggle("hidden", !!cfg.gateway_url.trim());
     $("toolsUi").classList.toggle("hidden", !cfg.gateway_url.trim());
     $("loginErr").innerHTML = "";
@@ -650,4 +701,8 @@ if __name__ == "__main__":  # self-check of paging + picking, no AWS needed
     assert _pick(items, "Name", "refund-pool-", "") == (None, "2 found, type your initials to choose")
     assert _pick(items[:1], "Name", "refund-pool-", "") == ({"Name": "a"}, None)
     assert _pick([], "Name", "refund-pool-", "") == (None, "none yet")
+    assert GATEWAY_URL.fullmatch("https://refund-gw-abc123.gateway.bedrock-agentcore.eu-central-1.amazonaws.com/mcp")
+    assert not GATEWAY_URL.fullmatch("https://evil.example.com/mcp")
+    assert not GATEWAY_URL.fullmatch("https://x.gateway.bedrock-agentcore.eu-central-1.amazonaws.com.evil.com/mcp")
+    assert mcp_forward({"headers": {"x-gateway-url": "https://evil.example.com/mcp"}})["statusCode"] == 400
     print("ok")

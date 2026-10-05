@@ -357,6 +357,59 @@ Log in as **alice** and use the Tools tab:
 **You are done when** you can show one allow and the three denies, and the denials
 appear in CloudWatch under the `aws/spans` log group.
 
+### Add a rule with memory (Dogwood)
+
+Cedar judges each call on its own. It cannot know whether you looked at an order
+before you asked to refund it. Dogwood is Cedar plus the history of your session,
+so it can.
+
+11. Give gateway B permission to keep a session. Open gateway B in **AgentCore** and
+    click its **service role**. In IAM choose **Add permissions**, then **Create
+    inline policy**, then **JSON**. Paste the contents of
+    `policies/gateway_temporal_iam.json` from this repo, choose **Next**, name it
+    `policy-sessions`, and create it.
+
+12. In your policy engine, add a policy called `refund_after_lookup`. Choose
+    **Dogwood** as the policy language, and replace `YOUR_GATEWAY_B_ARN` again:
+
+    ```
+    forbid (
+        principal is AgentCore::OAuthUser,
+        action == AgentCore::Action::"orders___process_refund",
+        resource == AgentCore::Gateway::"YOUR_GATEWAY_B_ARN"
+    )
+    unless temporal {
+        formerly within 1h AgentCore::Action::"orders___get_order_transaction"::response{
+            eventResource: resource,
+            input.customer_id: context.input.customer_id,
+            input.order_id: context.input.order_id
+        }
+    };
+    ```
+
+    This says: no refund unless, earlier in this session, the same customer opened
+    the same order. Like the cap, it is a `forbid` on top of the first policy.
+
+    > From now on every call must say which session it belongs to. The tester does
+    > that for you: the Tools tab shows your **Policy session**.
+
+### Show that it remembers
+
+Log in as **alice**, open the Tools tab, and click **New session** first.
+
+| What you call, in order | What should happen |
+|---|---|
+| `process_refund`, `alice`, `A-1001`, amount `49` | denied, you never looked at it |
+| `get_order_transaction`, `alice`, `A-1001` | allowed |
+| `process_refund`, `alice`, `A-1001`, amount `49` | allowed |
+
+Wait a second between the last two: the lookup is recorded just after it returns.
+Then click **New session** and try the refund again. It is denied, because the new
+session has no history.
+
+**You are done when** the same refund is denied, then allowed, then denied again in
+a new session.
+
 ### The point
 
 Two doors into the same Lambda.
@@ -369,6 +422,8 @@ policy engine compares it to every tool call. The model cannot argue with it and
 neither can you.
 
 That is the difference between telling software who you are and proving it.
+
+Cedar checks who you are on every call. Dogwood also checks what you did before it.
 
 ---
 

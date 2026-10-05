@@ -15,8 +15,8 @@ agent/               M1 local agent: main.py (3 tools, in-memory ORDERS, streame
                      replies), memory/session.py (no-op locally), model/load.py
 agentcore/           agentcore.json, the CLI project file `make dev` needs
 tools/               M5 Lambda (4 order/refund tools) + gateway tool schema
-policies/            M6 Cedar policies for gateway B
-chat/                the tester: one pasteable Lambda file (page + /lookup)
+policies/            M6 Cedar + Dogwood policies for gateway B, and its temporal IAM
+chat/                the tester: one pasteable Lambda file (page, /lookup, /mcp)
 docs/                LABS (attendee steps), STAFF (instructor notes), notebook
 Makefile             make dev / make chat-deploy / make chat-down
 ```
