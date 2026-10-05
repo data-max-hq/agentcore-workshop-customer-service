@@ -1,0 +1,34 @@
+// Policy 3 of 3 — "only refund an order you looked at first". A Dogwood policy.
+//
+// Cedar only sees the request in front of it. Dogwood, a superset of Cedar, can
+// also look back at what already happened in this session. Here a refund is
+// blocked unless the same customer opened that same order's transaction earlier
+// in the session, so an agent can't refund an order nobody looked at.
+//
+// Like the $200 cap, this is a forbid layered on top of identity-binding.cedar:
+// `unless temporal { … }` blocks when the thing inside did NOT happen.
+//
+// What it needs (LABS.md, M5):
+//  - Created as a Dogwood policy: in the API the statement goes under `policy`,
+//    not `cedar`.
+//  - Gateway B's role allows bedrock-agentcore:GetWorkloadAccessToken
+//    (policies/gateway_temporal_iam.json).
+//  - Every call carries the x-amzn-bedrock-agentcore-policy-session-id header.
+//    With a temporal policy attached, calls without it fail. The tester sends it.
+//
+// Only a *successful* lookup counts: a denied call is recorded as an error, not
+// a response. Adding or changing a temporal policy ends open sessions (HTTP 409);
+// the tester starts a new one by itself.
+
+forbid (
+    principal is AgentCore::OAuthUser,
+    action == AgentCore::Action::"orders___process_refund",
+    resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:eu-central-1:925061584404:gateway/refund-gateway-identity-pju6ekwsja"
+)
+unless temporal {
+    formerly within 1h AgentCore::Action::"orders___get_order_transaction"::response{
+        eventResource: resource,
+        input.customer_id: context.input.customer_id,
+        input.order_id: context.input.order_id
+    }
+};
