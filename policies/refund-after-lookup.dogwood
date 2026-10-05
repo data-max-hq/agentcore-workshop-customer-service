@@ -8,7 +8,7 @@
 // Like the $200 cap, this is a forbid layered on top of identity-binding.cedar:
 // `unless temporal { … }` blocks when the thing inside did NOT happen.
 //
-// What it needs (LABS.md, M6):
+// What it needs (LABS.md, M5):
 //  - Created as a Dogwood policy: in the API the statement goes under `policy`,
 //    not `cedar`.
 //  - Gateway B's role allows bedrock-agentcore:GetWorkloadAccessToken

@@ -1,8 +1,0 @@
-# Secrets (local environment files are never committed)
-.env.local
-
-# CLI Internals
-.cli/*
-
-# Ephemeral Staging
-.cache/*

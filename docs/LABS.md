@@ -36,8 +36,8 @@ That difference is the whole point of the workshop.
 
 ## The tester app
 
-You will use a small web app for every lab after M1. It runs in your own AWS
-account as a Lambda, so you need nothing on your laptop. Set it up once:
+You will use a small web app in every lab. It runs in your own AWS account as a
+Lambda, so you need nothing on your laptop but a browser. Set it up once:
 
 1. Go to **Lambda** and choose **Create function**.
 2. Choose **Author from scratch**. Name it `refund_ui_<your initials>`, runtime
@@ -64,40 +64,7 @@ AWS account with others, type your initials there first.
 
 ---
 
-# M1. Run the agent on your laptop
-
-No AWS needed. This is the "before" picture.
-
-1. Install the CLI:
-   ```bash
-   npm install -g @aws/agentcore@0.31.0
-   ```
-2. Start the agent from the repo root. Leave it running.
-   ```bash
-   make dev
-   ```
-3. Open http://localhost:8081.
-4. Ask: **what orders do I have?** You get A-1001 and A-1002.
-5. Ask: **refund A-1001.** You get a fake refund.
-6. Ask: **what did I just refund?** It remembers.
-7. Open the **Timeline** panel and click your last request.
-
-**You are done when** you can see a trace with a model call and tool calls in it,
-each with a time next to it.
-
-Now try this:
-
-```bash
-LOCAL_DEV_CUSTOMER=bob make dev
-```
-
-Ask for A-1001. It is not on bob's account. That looks like security, but it is
-not. The name `alice` is just a default in the code. Nobody checked a password.
-The rest of the labs replace that guess with a real, checked identity.
-
----
-
-# M2. Identity: create your login
+# M1. Identity: create your login
 
 You are making the thing that issues tokens.
 
@@ -145,7 +112,7 @@ ID instead, go back to step 2.
 
 ---
 
-# M3. The agent
+# M2. The agent
 
 1. Go to **Bedrock AgentCore** and then **Harness**. Choose **Create**.
 
@@ -178,13 +145,19 @@ ID instead, go back to step 2.
 
 8. In the tester, press **Find my resources**. **Agent (harness)** gets a tick.
 
-9. Send **hello** in the Chat tab.
+9. Send **hello** in the tester's Chat tab.
 
-**You are done when** the agent replies. It cannot see any orders yet. That is M5.
+10. Now open your harness in the console and choose **Test Harness**. Ask the same
+    thing there. It works without any login, because the console signs you in with
+    your AWS user. In the playground you can type any **Actor ID** you like, and the
+    agent believes it. The rest of the labs replace that guess with a checked
+    identity.
+
+**You are done when** the agent replies. It cannot see any orders yet. That is M4.
 
 ---
 
-# M4. Memory
+# M3. Memory
 
 1. Go to **AgentCore** and then **Memory**. Create a memory resource in
    `eu-central-1`. Name it `refund_memory_<your initials>`.
@@ -202,7 +175,7 @@ start a new one.
 
 ---
 
-# M5. Tools
+# M4. Tools
 
 Now the agent gets something to do. The tools live in a Lambda, and a gateway puts
 them in front of the agent.
@@ -262,11 +235,11 @@ alice's name into the prompt and the model chose to obey. Nothing checked it. A
 cleverer message can talk the model into passing `customer_id` of `bob`.
 
 The gateway cannot help here, because when the agent calls it, the gateway sees the
-agent's AWS role. It never sees you. M6 fixes that.
+agent's AWS role. It never sees you. M5 fixes that.
 
 ---
 
-# M6. Policies
+# M5. Policies
 
 Here you build a second door that does see you, and you put a guard on it.
 
@@ -275,11 +248,11 @@ Here you build a second door that does see you, and you put a guard on it.
 1. Create another gateway, named `refund_gw_jwt_<your initials>`. Protocol: **MCP**.
 
 2. This time set inbound auth to **Custom JWT**, with the same two values you used
-   for the harness in M3:
+   for the harness in M2:
    - Discovery URL with your pool ID
    - Allowed clients: your app client ID
 
-3. Add a target. Use the **same Lambda** and the **same tool schema** as M5.
+3. Add a target. Use the **same Lambda** and the **same tool schema** as M4.
 
    > Name this target `orders` exactly. Policy rules refer to tools as
    > `<target name>___<tool name>`, so the rules below only work if the target is
@@ -395,17 +368,18 @@ so it can.
 
 ### Show that it remembers
 
-Log in as **alice**, open the Tools tab, and click **New session** first.
+Log in as **bob**, open the Tools tab, and click **New session** first.
 
 | What you call, in order | What should happen |
 |---|---|
-| `process_refund`, `alice`, `A-1001`, amount `49` | denied, you never looked at it |
-| `get_order_transaction`, `alice`, `A-1001` | allowed |
-| `process_refund`, `alice`, `A-1001`, amount `49` | allowed |
+| `process_refund`, `bob`, `B-2001`, amount `15` | denied, you never looked at it |
+| `get_order_transaction`, `bob`, `B-2001` | allowed |
+| `process_refund`, `bob`, `B-2001`, amount `15` | allowed |
 
 Wait a second between the last two: the lookup is recorded just after it returns.
 Then click **New session** and try the refund again. It is denied, because the new
-session has no history.
+session has no history. (The policy decides first, so you see the deny, not the
+Lambda saying the order is already refunded.)
 
 **You are done when** the same refund is denied, then allowed, then denied again in
 a new session.
@@ -431,10 +405,3 @@ Cedar checks who you are on every call. Dogwood also checks what you did before 
 
 Ask a staff member. Most problems are listed in [STAFF.md](STAFF.md). The tester shows a
 hint under most errors.
-
-To reset the local agent:
-
-```bash
-pkill -f "agentcore dev"
-make dev
-```
