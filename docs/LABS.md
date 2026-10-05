@@ -327,8 +327,7 @@ Log in as **alice** and use the Tools tab:
 | `process_refund`, `alice`, `A-1004`, amount `300` | denied, over the cap |
 | `process_refund`, `alice`, `A-1001`, amount `49` | allowed |
 
-**You are done when** you can show one allow and the three denies, and the denials
-appear in CloudWatch under the `aws/spans` log group.
+**You are done when** you can show one allow and the three denies.
 
 ### Add a rule with memory (Dogwood)
 
