@@ -1,0 +1,51 @@
+[
+  {
+    "name": "find_orders",
+    "description": "List the customer's orders, optionally filtered by item name. Use when the customer doesn't give an order id.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "customer_id": { "type": "string", "description": "The signed-in customer, e.g. \"alice\". The policy binds this to your verified identity." },
+        "item_query": { "type": "string", "description": "Optional text to match in the item name, e.g. \"keyboard\"." }
+      },
+      "required": ["customer_id"]
+    }
+  },
+  {
+    "name": "get_order_transaction",
+    "description": "Get one order's status, payment transaction and any existing refund.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "customer_id": { "type": "string", "description": "The signed-in customer, e.g. \"alice\". The policy binds this to your verified identity." },
+        "order_id": { "type": "string", "description": "The order identifier, e.g. \"A-1001\"." }
+      },
+      "required": ["customer_id", "order_id"]
+    }
+  },
+  {
+    "name": "process_refund",
+    "description": "Issue a (simulated) refund for a delivered order the customer owns.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "customer_id": { "type": "string", "description": "The signed-in customer, e.g. \"alice\". The policy binds this to your verified identity." },
+        "order_id": { "type": "string", "description": "The order identifier, e.g. \"A-1001\"." },
+        "amount": { "type": "number", "description": "Refund amount in dollars." }
+      },
+      "required": ["customer_id", "order_id", "amount"]
+    }
+  },
+  {
+    "name": "get_refund_status",
+    "description": "Report the (simulated) settled status of a refund for an order the customer owns.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "customer_id": { "type": "string", "description": "The signed-in customer, e.g. \"alice\". The policy binds this to your verified identity." },
+        "order_id": { "type": "string", "description": "The order identifier, e.g. \"A-1001\"." }
+      },
+      "required": ["customer_id", "order_id"]
+    }
+  }
+]

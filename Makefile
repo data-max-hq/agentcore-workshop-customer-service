@@ -1,7 +1,7 @@
 # RefundAgent — thin wrapper over the AgentCore CLI.
 #   make dev            # run the agent locally (chat UI on :8081)
 #   make infra-deploy   # optional: deploy the payment Gateway + Lambda to AWS
-export AWS_REGION ?= us-east-1
+export AWS_REGION ?= eu-central-1
 
 .PHONY: help check dev infra-preview infra-deploy infra-down
 help:  ## show this help
