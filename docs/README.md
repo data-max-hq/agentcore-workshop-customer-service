@@ -4,7 +4,7 @@ Attendees build the whole managed flow in the AWS console (M1 to M5): a login, a
 agent, memory, tools, and authorization policies. They install nothing. They drive all of it from a small tester app
 (`chat/lambda_function.py`) that each attendee deploys as a Lambda in their account. Teaching staff explain the ideas. These docs are only the steps.
 
-Everything is in **eu-central-1**.
+Everything is in **us-east-1**.
 
 - **[LABS.md](LABS.md)** is what attendees follow.
 - **[STAFF.md](STAFF.md)** is the setup checklist and the error list. Staff read
@@ -14,9 +14,9 @@ Everything is in **eu-central-1**.
 
 | Module | What they do | Needs AWS | Time |
 |---|---|---|---|
-| M1 Identity | Cognito pool and users, log in with the tester | console | 15 min |
-| M2 The agent | create a harness with JWT login | console | 15 min |
-| M3 Memory | attach memory, watch it remember and forget | console | 10 min |
+| M1 Identity | Cognito pool and users, the tester finds them | console | 15 min |
+| M2 The agent | create a harness with JWT login, log in with the tester | console | 15 min |
+| M3 Memory | short-term only with your own memory, then managed long-term memory | console | 15 min |
 | M4 Tools | Lambda, gateway A, attach to the agent | console | 20 min |
 | M5 Policies | gateway B, policy engine, Cedar rules, then a Dogwood rule | console | 35 min |
 
@@ -47,7 +47,7 @@ without reading the last section of STAFF.md.
 
 Each attendee needs:
 
-- A browser, and AWS console access to their account in `eu-central-1`, with
+- A browser, and AWS console access to their account in `us-east-1`, with
   Bedrock access to a Claude model enabled there
 - Nothing installed. No Docker and no database: orders live in the tool Lambda.
 

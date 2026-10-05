@@ -2,7 +2,7 @@
 
 Your instructor explains the ideas. This file is just the steps.
 
-**Region for everything: `eu-central-1` (Frankfurt).** Set the region picker in the
+**Region for everything: `us-east-1` (N. Virginia).** Set the region picker in the
 AWS console before you start. If you build something in the wrong region, nothing
 will find it.
 
@@ -104,11 +104,8 @@ You are making the thing that issues tokens.
 9. Open the tester and press **Find my resources**. **User pool** and **App client**
    get a tick.
 
-10. Log in as **alice**. The first login asks you to pick a new password.
-
-**You are done when** the tester says you are signed in as alice, and the panel
-**What's inside my token?** shows `"username": "alice"`. If it shows a long random
-ID instead, go back to step 2.
+**You are done when** **User pool** and **App client** both have a tick. You log in
+as alice in M2: the tester only opens the login once there is an agent to talk to.
 
 ---
 
@@ -118,7 +115,7 @@ ID instead, go back to step 2.
 
 2. Name it `refund_<your initials>`. The name cannot be changed later.
 
-3. Pick a Claude model that is available in `eu-central-1`.
+3. Pick a Claude model that is available in `us-east-1`.
 
 4. For the system prompt, paste:
 
@@ -131,49 +128,97 @@ ID instead, go back to step 2.
 
    - **Discovery URL**, with your own pool ID in it:
      ```
-     https://cognito-idp.eu-central-1.amazonaws.com/YOUR_POOL_ID/.well-known/openid-configuration
+     https://cognito-idp.us-east-1.amazonaws.com/YOUR_POOL_ID/.well-known/openid-configuration
      ```
    - **Allowed clients**: your app client ID.
 
 6. Save and wait for the status to become **READY**.
 
 7. Copy the **harness ARN** from the details page. It looks like
-   `arn:aws:bedrock-agentcore:eu-central-1:123456789012:harness/refund_amg-AbC1234567`.
+   `arn:aws:bedrock-agentcore:us-east-1:123456789012:harness/refund_amg-AbC1234567`.
 
    > Take the ARN with `:harness/` in it. There is a second ARN on the page with
    > `:runtime/harness_` in it. That one will not work.
 
-8. In the tester, press **Find my resources**. **Agent (harness)** gets a tick.
+8. In the tester, press **Find my resources**. **Agent (harness)** gets a tick, and
+   the login form appears.
 
-9. Send **hello** in the tester's Chat tab.
+9. Log in as **alice**. The first login asks you to pick a new password.
 
-10. Now open your harness in the console and choose **Test Harness**. Ask the same
+10. Open the panel **What's inside my token?**. It should show `"username": "alice"`.
+    If it shows a long random ID instead, your pool signs in by email: go back to M1
+    step 2.
+
+11. Send **hello** in the tester's Chat tab.
+
+12. Now open your harness in the console and choose **Test Harness**. Ask the same
     thing there. It works without any login, because the console signs you in with
     your AWS user. In the playground you can type any **Actor ID** you like, and the
     agent believes it. The rest of the labs replace that guess with a checked
     identity.
 
-**You are done when** the agent replies. It cannot see any orders yet. That is M4.
+**You are done when** you are signed in as alice, your token says `"username": "alice"`,
+and the agent replies. It cannot see any orders yet. That is M4.
 
 ---
 
 # M3. Memory
 
-1. Go to **AgentCore** and then **Memory**. Create a memory resource in
-   `eu-central-1`. Name it `refund_memory_<your initials>`.
+Your harness already has memory. When you created it, AgentCore gave it a
+**managed memory** with two long-term strategies. You will swap it for a plain
+memory to see short-term memory on its own, then put the managed one back.
 
-2. Edit your harness and attach that memory to it. Wait for **READY**.
+### Look at what you have
 
-3. In the Chat tab, say: **my favourite colour is green.**
+1. Open your harness and find its **Memory** section. Note the two retrieval
+   configs:
+   - `/actors/{actorId}/facts/` (semantic): facts about **you**, kept across chats.
+   - `/actors/{actorId}/summaries/{sessionId}/` (summarization): a summary of
+     **one chat**.
 
-4. Then ask: **what is my favourite colour?** It should remember.
+   `{actorId}` is your login. The tester sends your username, so alice's memory
+   and bob's memory never mix.
 
-5. Click **New chat** and ask again. It should have forgotten.
+### Short-term memory only
 
-**You are done when** the agent remembers inside one chat and forgets after you
-start a new one.
+2. Go to **AgentCore** and then **Memory**. Create a memory resource in
+   `us-east-1`. Name it `refund_memory_<your initials>`. **Do not add any
+   long-term strategies.**
 
----
+3. Edit your harness and switch its memory to the one you just made. Wait for
+   **READY**.
+
+4. In the Chat tab, say: **my favourite colour is green.**
+
+5. Then ask: **what is my favourite colour?** It remembers. That is short-term
+   memory: the conversation so far, kept for this chat.
+
+6. Click **New chat** and ask again. It has forgotten. A new chat is a new
+   session, and short-term memory belongs to the session.
+
+### Long-term memory
+
+7. Edit your harness and switch its memory back to **managed memory**. Wait for
+   **READY**, and check the two retrieval configs from step 1 are there again.
+
+8. In the Chat tab, say: **my favourite colour is green.** Ask about it in the same
+   chat. It remembers, as before.
+
+9. **Wait a minute or two.** Long-term memories are extracted in the background
+   after the conversation, not instantly.
+
+10. Click **New chat** and ask: **what is my favourite colour?** This time it
+    remembers. The fact was saved under `/actors/alice/facts/`, which belongs to
+    alice, not to the chat.
+
+11. Sign out, log in as **bob**, and ask the same question. bob's agent does not
+    know. Same agent, same memory resource, different actor.
+
+**You are done when** the plain memory forgets after **New chat**, the managed
+memory remembers after **New chat**, and bob does not see alice's colour.
+
+> If step 10 still forgets, wait another minute and ask again. Extraction can take
+> a little while.
 
 # M4. Tools
 

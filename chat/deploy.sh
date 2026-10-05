@@ -2,12 +2,12 @@
 # Deploy (or update) the hosted chat UI into whatever account your AWS credentials point at.
 # Easiest: open AWS CloudShell (top bar of the AWS console) and run
 #   git clone https://github.com/data-max-hq/agentcore-workshop-customer-service && bash agentcore-workshop-customer-service/chat/deploy.sh
-# Usage: ./deploy.sh            (region defaults to eu-central-1)
+# Usage: ./deploy.sh            (region defaults to us-east-1)
 #        ./deploy.sh down       (delete the tester and its role again)
 #        OWNER=you ./deploy.sh  (value for the owner tag some accounts require)
 set -euo pipefail
 cd "$(dirname "$0")"
-REGION=${AWS_REGION:-eu-central-1} FN=agentcore-chat-ui ROLE=agentcore-chat-ui-role
+REGION=${AWS_REGION:-us-east-1} FN=agentcore-chat-ui ROLE=agentcore-chat-ui-role
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
 if [ "${1:-}" = down ]; then

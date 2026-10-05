@@ -32,10 +32,10 @@ reading the note at the bottom of this file.
 
 ## What to set up before the room starts
 
-1. An AWS account per attendee with console access, region `eu-central-1`. If
+1. An AWS account per attendee with console access, region `us-east-1`. If
    people share one account instead, the naming rule below is what keeps their
    resources apart, and they type their initials in the tester's Settings.
-2. Bedrock model access to a Claude model in `eu-central-1`.
+2. Bedrock model access to a Claude model in `us-east-1`.
 3. Decide the Lambda approach. Either pre-deploy one shared Lambda from
    `tools/lambda_function.py` and hand out its ARN, or let each attendee
    paste the file into the Lambda console. It is one file with no dependencies, so
@@ -46,6 +46,8 @@ reading the note at the bottom of this file.
 ## Reference setup
 
 A working copy already exists in account `925061584404`, region `eu-central-1`.
+It was built before the workshop moved to `us-east-1`, so the tester only finds it
+when deployed in `eu-central-1` (or with every ID under **Settings → Enter manually**).
 Use it to demo, or to compare against when an attendee is stuck.
 
 | Thing | Value |
@@ -72,6 +74,9 @@ first login, so the password-change screen can be demonstrated.
 | Tester: 401 or 403 from the agent | discovery URL or allowed clients on the harness do not match the pool | compare them character by character. Tokens also expire after an hour, so sign out and in. |
 | Tester: 404 from the agent | wrong ARN, region or endpoint | use the `:harness/` ARN, not the `:runtime/harness_` one |
 | `managed by a harness ... cannot be invoked directly` | they pasted the `:runtime/harness_` ARN | use the `:harness/` ARN from the details page |
+| M3: the new chat still remembers with their own memory (steps 2 to 6) | their memory has a long-term strategy, or the harness is still on managed memory | check the harness's Memory section points at `refund_memory_<initials>`, and that memory has no strategies |
+| M3: the new chat forgets with managed memory (step 10) | long-term facts are extracted in the background and were not there yet, or they asked as a different user | wait a minute or two and ask again, logged in as the same user. To check, open the memory and look for a record under `/actors/<username>/facts/` |
+| M3: switching back to managed memory, the agent does not know the colour from before | the harness may provision a fresh managed memory, so the earlier facts are not in it | expected. Tell it again in step 8 |
 | Gateway target fails with `Gateway service is not authorized to perform AssumeRole on Gateway role` | the service role was created seconds earlier and has not propagated | wait a minute and add the target again. The role is fine. |
 | Harness test chat: `Failed to load tool … Failed to start MCP client … 403 Forbidden` | gateway A refused the agent. Either its inbound auth is Custom JWT (the quick-start default; the agent sends no token), or it is AWS IAM and the harness role lacks `InvokeGateway` | JWT: recreate gateway A with **AWS IAM** auth. IAM: add policy [C](#c-harness-execution-role-call-the-gateway) to the harness execution role, wait a minute, reload the chat |
 | Tool calls fail and the Lambda's CloudWatch log stays empty | the gateway's service role cannot invoke the Lambda | add policy [B](#b-gateway-role-invoke-the-lambda) to the gateway service role. Console-created roles usually have it, so check first |

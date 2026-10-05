@@ -2,7 +2,7 @@
 
 In this workshop, people build a customer-service **refund agent** on **Amazon Bedrock AgentCore**. A signed-in customer can list their orders, check one, and ask for a refund. Along the way they add a Cognito login, memory, tools behind a gateway, Cedar policies that refuse to let one customer touch another's orders, and a Dogwood policy that remembers what happened earlier in the session.
 
-Everything is set up by hand in the AWS Console, in **Europe (Frankfurt) eu-central-1**, with nothing to install. The code and policies in this repo are pasted into the console as they are; there is no build step.
+Everything is set up by hand in the AWS Console, in **US East (N. Virginia) us-east-1**, with nothing to install. The code and policies in this repo are pasted into the console as they are; there is no build step.
 
 ## Architecture
 

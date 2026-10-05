@@ -5,8 +5,8 @@
     "Effect": "Allow",
     "Action": "bedrock-agentcore:GetWorkloadAccessToken",
     "Resource": [
-      "arn:aws:bedrock-agentcore:eu-central-1:*:workload-identity-directory/default",
-      "arn:aws:bedrock-agentcore:eu-central-1:*:workload-identity-directory/default/workload-identity/*"
+      "arn:aws:bedrock-agentcore:us-east-1:*:workload-identity-directory/default",
+      "arn:aws:bedrock-agentcore:us-east-1:*:workload-identity-directory/default/workload-identity/*"
     ]
   }]
 }

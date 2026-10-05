@@ -212,14 +212,14 @@ HTML = r'''<!doctype html>
     <label class="check"><input id="identity" type="checkbox"> Tell the agent who I am <span class="hint">Identity lab, step 12</span></label>
     <details style="margin-top:.8rem"><summary>Enter manually</summary>
     <form id="fCfg">
-      <label>User pool ID <span class="hint">Cognito → User pools → your pool. Looks like <code>eu-central-1_AbC123xyz</code></span></label>
-      <input data-key="user_pool_id" placeholder="eu-central-1_AbC123xyz" spellcheck="false">
+      <label>User pool ID <span class="hint">Cognito → User pools → your pool. Looks like <code>us-east-1_AbC123xyz</code></span></label>
+      <input data-key="user_pool_id" placeholder="us-east-1_AbC123xyz" spellcheck="false">
       <label>App client ID <span class="hint">Cognito → your pool → App clients. 26 letters and numbers</span></label>
       <input data-key="client_id" placeholder="1abc2def3ghi4jkl5mno6pqr7s" spellcheck="false">
       <label>Agent ARN <span class="hint">Bedrock AgentCore → your harness → details. Starts with <code>arn:aws:bedrock-agentcore:</code></span></label>
-      <input data-key="agent_arn" placeholder="arn:aws:bedrock-agentcore:eu-central-1:123456789012:harness/…" spellcheck="false">
+      <input data-key="agent_arn" placeholder="arn:aws:bedrock-agentcore:us-east-1:123456789012:harness/…" spellcheck="false">
       <label>Gateway URL <span class="hint">Optional, from the gateway lab. Ends in <code>/mcp</code></span></label>
-      <input data-key="gateway_url" placeholder="https://…gateway.bedrock-agentcore.eu-central-1.amazonaws.com/mcp" spellcheck="false">
+      <input data-key="gateway_url" placeholder="https://…gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp" spellcheck="false">
       <label>System prompt <span class="hint">Optional, from the identity lab. <code>{username}</code> becomes the signed-in user</span></label>
       <textarea data-key="system_prompt" rows="4"></textarea>
       <button class="full">Save</button>
@@ -290,7 +290,7 @@ HTML = r'''<!doctype html>
 <script>
 const SESSION_MS = 15 * 60 * 1000;   // workshop rule: sign out 15 min after sign-in
 const DEFAULTS = {
-  region: "eu-central-1", user_pool_id: "", client_id: "", agent_arn: "", gateway_url: "", system_prompt: "",
+  region: "us-east-1", user_pool_id: "", client_id: "", agent_arn: "", gateway_url: "", system_prompt: "",
 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -313,8 +313,8 @@ function validate(c) {
   const POOL = /^[a-z]{2}-[a-z]+-\d_[0-9a-zA-Z]+$/, CLIENT = /^[0-9a-z]{20,128}$/,
         ARN = /^arn:aws[\w-]*:bedrock-agentcore:[a-z0-9-]+:\d{12}:(harness\/|runtime\/harness_)[\w-]+$/;
   if (!POOL.test(pool)) p.push(CLIENT.test(pool)
-      ? "User pool ID looks like a <b>Client ID</b>. The pool ID contains the region and an underscore, e.g. <code>eu-central-1_AbC123xyz</code>."
-      : "User pool ID should look like <code>eu-central-1_AbC123xyz</code>.");
+      ? "User pool ID looks like a <b>Client ID</b>. The pool ID contains the region and an underscore, e.g. <code>us-east-1_AbC123xyz</code>."
+      : "User pool ID should look like <code>us-east-1_AbC123xyz</code>.");
   else if (!pool.startsWith(c.region + "_")) p.push(`User pool ID starts with a different region than <b>${esc(c.region)}</b>.`);
   if (!CLIENT.test(client)) p.push("Client ID should be ~26 lowercase letters/numbers (no underscore).");
   if (!ARN.test(arn)) p.push("Agent ARN should be your harness ARN, like <code>…:harness/refund_amg-AbC1234567</code>.");
@@ -659,8 +659,8 @@ if __name__ == "__main__":  # self-check of paging + picking, no AWS needed
     assert _pick(items, "Name", "refund-pool-", "") == (None, "2 found, type your initials to choose")
     assert _pick(items[:1], "Name", "refund-pool-", "") == ({"Name": "a"}, None)
     assert _pick([], "Name", "refund-pool-", "") == (None, "none yet")
-    assert GATEWAY_URL.fullmatch("https://refund-gw-abc123.gateway.bedrock-agentcore.eu-central-1.amazonaws.com/mcp")
+    assert GATEWAY_URL.fullmatch("https://refund-gw-abc123.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp")
     assert not GATEWAY_URL.fullmatch("https://evil.example.com/mcp")
-    assert not GATEWAY_URL.fullmatch("https://x.gateway.bedrock-agentcore.eu-central-1.amazonaws.com.evil.com/mcp")
+    assert not GATEWAY_URL.fullmatch("https://x.gateway.bedrock-agentcore.us-east-1.amazonaws.com.evil.com/mcp")
     assert mcp_forward({"headers": {"x-gateway-url": "https://evil.example.com/mcp"}})["statusCode"] == 400
     print("ok")
