@@ -222,13 +222,6 @@ HTML = r'''<!doctype html>
       <input data-key="gateway_url" placeholder="https://…gateway.bedrock-agentcore.eu-central-1.amazonaws.com/mcp" spellcheck="false">
       <label>System prompt <span class="hint">Optional, from the identity lab. <code>{username}</code> becomes the signed-in user</span></label>
       <textarea data-key="system_prompt" rows="4"></textarea>
-      <details style="margin-top:.8rem"><summary>Advanced</summary>
-        <label>App client secret <span class="hint">Only if your app client has one</span></label>
-        <input data-key="client_secret" type="password">
-        <label>Endpoint (runtime only)</label><input data-key="qualifier">
-        <label>Runtime request body</label><textarea data-key="payload_template" rows="2"></textarea>
-        <label>Harness request body</label><textarea data-key="harness_template" rows="2"></textarea>
-      </details>
       <button class="full">Save</button>
     </form>
     </details>
@@ -297,10 +290,7 @@ HTML = r'''<!doctype html>
 <script>
 const SESSION_MS = 15 * 60 * 1000;   // workshop rule: sign out 15 min after sign-in
 const DEFAULTS = {
-  region: "eu-central-1", user_pool_id: "", client_id: "", client_secret: "", agent_arn: "",
-  qualifier: "DEFAULT", payload_template: '{"prompt": "{message}"}',
-  harness_template: '{"messages": [{"role": "user", "content": [{"text": "{message}"}]}]}',
-  gateway_url: "", system_prompt: "",
+  region: "eu-central-1", user_pool_id: "", client_id: "", agent_arn: "", gateway_url: "", system_prompt: "",
 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -321,16 +311,14 @@ let cfg = loadCfg();
 function validate(c) {
   const p = [], pool = c.user_pool_id.trim(), client = c.client_id.trim(), arn = c.agent_arn.trim();
   const POOL = /^[a-z]{2}-[a-z]+-\d_[0-9a-zA-Z]+$/, CLIENT = /^[0-9a-z]{20,128}$/,
-        ARN = /^arn:aws[\w-]*:bedrock-agentcore:[a-z0-9-]+:\d{12}:(runtime|harness)\/[\w-]+$/;
+        ARN = /^arn:aws[\w-]*:bedrock-agentcore:[a-z0-9-]+:\d{12}:(harness\/|runtime\/harness_)[\w-]+$/;
   if (!POOL.test(pool)) p.push(CLIENT.test(pool)
       ? "User pool ID looks like a <b>Client ID</b>. The pool ID contains the region and an underscore, e.g. <code>eu-central-1_AbC123xyz</code>."
       : "User pool ID should look like <code>eu-central-1_AbC123xyz</code>.");
   else if (!pool.startsWith(c.region + "_")) p.push(`User pool ID starts with a different region than <b>${esc(c.region)}</b>.`);
   if (!CLIENT.test(client)) p.push("Client ID should be ~26 lowercase letters/numbers (no underscore).");
-  if (!ARN.test(arn)) p.push("Agent ARN should look like <code>…:runtime/my_agent-AbC123</code> or <code>…:harness/&lt;id&gt;</code>.");
+  if (!ARN.test(arn)) p.push("Agent ARN should be your harness ARN, like <code>…:harness/refund_amg-AbC1234567</code>.");
   else if (!arn.includes(`:${c.region}:`)) p.push(`Agent ARN is in a different region than <b>${esc(c.region)}</b>.`);
-  try { JSON.parse(c[arn.includes(":harness/") ? "harness_template" : "payload_template"].replaceAll("{message}", "test")); }
-  catch { p.push("Request body template is not valid JSON."); }
   return p;
 }
 
@@ -383,14 +371,6 @@ async function cognito(action, body) {
   return data;
 }
 
-async function secretHash(username) {
-  if (!cfg.client_secret) return null;
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", enc.encode(cfg.client_secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(username + cfg.client_id.trim()));
-  return btoa(String.fromCharCode(...new Uint8Array(sig)));
-}
-
 function decodeJwt(t) {
   try { return JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); } catch { return {}; }
 }
@@ -426,7 +406,6 @@ $("fLogin").onsubmit = async e => {
   S.username = $("user").value.trim();
   try {
     const params = { USERNAME: S.username, PASSWORD: $("pass").value };
-    const sh = await secretHash(S.username); if (sh) params.SECRET_HASH = sh;
     const res = await cognito("InitiateAuth", { AuthFlow: "USER_PASSWORD_AUTH", ClientId: cfg.client_id.trim(), AuthParameters: params });
     if (res.ChallengeName === "NEW_PASSWORD_REQUIRED") { S.challenge = res.Session; render(); }
     else if (res.AuthenticationResult) signedIn(res.AuthenticationResult);
@@ -436,7 +415,7 @@ $("fLogin").onsubmit = async e => {
     if (/USER_PASSWORD_AUTH|flow not enabled/i.test(err.message))
       html += note("info", "Enable <b>ALLOW_USER_PASSWORD_AUTH</b> on the app client (Cognito → App clients → Edit → Authentication flows).");
     else if (err.message.includes("SECRET_HASH"))
-      html += note("info", "The app client has a secret — add it under Settings → Advanced.");
+      html += note("info", "The app client has a secret. Create it as a <b>Single-page application</b> client instead, which has none.");
     $("loginErr").innerHTML = html;
   } finally { btn.disabled = false; $("pass").value = ""; }
 };
@@ -447,7 +426,6 @@ $("fNewPw").onsubmit = async e => {
   const btn = e.submitter; btn.disabled = true; $("loginErr").innerHTML = "";
   try {
     const resp = { USERNAME: S.username, NEW_PASSWORD: $("np1").value };
-    const sh = await secretHash(S.username); if (sh) resp.SECRET_HASH = sh;
     const res = await cognito("RespondToAuthChallenge", { ChallengeName: "NEW_PASSWORD_REQUIRED", ClientId: cfg.client_id.trim(), ChallengeResponses: resp, Session: S.challenge });
     signedIn(res.AuthenticationResult);
   } catch (err) { $("loginErr").innerHTML = note("err", esc(err.message)); }
@@ -458,13 +436,6 @@ $("bOut").onclick = signOut;
 $("bNew").onclick = () => { S.sessionId = newId(); $("chat").innerHTML = '<p class="muted">Ask your agent anything to get started.</p>'; };
 
 // ---------------------------------------------------------------- agent ----
-function fill(obj, message) {
-  if (typeof obj === "string") return obj.replaceAll("{message}", message);
-  if (Array.isArray(obj)) return obj.map(v => fill(v, message));
-  if (obj && typeof obj === "object") return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fill(v, message)]));
-  return obj;
-}
-
 function extractText(d) {
   if (typeof d === "string") return d;
   if (Array.isArray(d)) { const p = d.map(extractText).filter(Boolean); return p.length ? p.join("") : null; }
@@ -476,14 +447,10 @@ function extractText(d) {
   return null;
 }
 
-// A harness-managed runtime is named harness_<id>, so rewrite …:runtime/harness_<id> to …:harness/<id>.
-function buildRequest(message) {
-  let arn = cfg.agent_arn.trim().replace(":runtime/harness_", ":harness/");
-  const base = `https://bedrock-agentcore.${cfg.region}.amazonaws.com`, enc = encodeURIComponent(arn);
-  if (arn.includes(":harness/"))
-    return [`${base}/harnesses/invoke?harnessArn=${enc}`, fill(JSON.parse(cfg.harness_template), message)];
-  return [`${base}/runtimes/${enc}/invocations?qualifier=${encodeURIComponent(cfg.qualifier.trim() || "DEFAULT")}`,
-          fill(JSON.parse(cfg.payload_template), message)];
+// The console also shows a …:runtime/harness_<id> ARN for the same harness; accept it and use …:harness/<id>.
+function harnessUrl() {
+  const arn = cfg.agent_arn.trim().replace(":runtime/harness_", ":harness/");
+  return `https://bedrock-agentcore.${cfg.region}.amazonaws.com/harnesses/invoke?harnessArn=${encodeURIComponent(arn)}`;
 }
 
 // AWS binary event-stream frame: [4B total][4B headers len][4B prelude crc][headers][payload][4B crc]
@@ -498,15 +465,15 @@ function* eventStream(buf) {
 }
 
 async function invokeAgent(message) {
-  const [url, body] = buildRequest(message);
+  const body = { messages: [{ role: "user", content: [{ text: message }] }] };
   const actor = actorId(S.token);
-  if (url.includes("/harnesses/invoke") && actor) {
-    body.actorId ??= actor;   // partition Memory by the signed-in user
+  if (actor) {
+    body.actorId = actor;   // partition Memory by the signed-in user
     // The harness can't see the caller's claims, so the app tells the model who it verified.
     // A convenience, NOT a security boundary — that lives in the gateway's Cedar policies (Tools tab).
     if (cfg.system_prompt) body.systemPrompt = [{ text: cfg.system_prompt.replaceAll("{username}", actor) }];
   }
-  const r = await fetch(url, { method: "POST", body: JSON.stringify(body), headers: {
+  const r = await fetch(harnessUrl(), { method: "POST", body: JSON.stringify(body), headers: {
     Authorization: `Bearer ${S.token}`, "Content-Type": "application/json",
     "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": S.sessionId,
   }});
@@ -519,14 +486,7 @@ async function invokeAgent(message) {
     }
     return [r.status, chunks.join(""), raw.join("\n")];
   }
-  const text = await r.text();
-  if (ctype.includes("text/event-stream")) {
-    for (const line of text.split("\n").filter(Boolean)) {
-      raw.push(line);
-      if (line.startsWith("data:")) { let p = line.slice(5).trim(); try { p = extractText(JSON.parse(p)) || ""; } catch {} chunks.push(p); }
-    }
-    return [r.status, chunks.join(""), raw.join("\n")];
-  }
+  const text = await r.text();   // errors come back as plain JSON
   try { return [r.status, extractText(JSON.parse(text)) || text, text]; } catch { return [r.status, text, text]; }
 }
 
@@ -534,13 +494,11 @@ function explainError(status, raw) {
   const hints = {
     401: "The agent rejected the token. Check the agent's **Inbound auth**: the Discovery URL must be `https://cognito-idp." + cfg.region + ".amazonaws.com/" + cfg.user_pool_id.trim() + "/.well-known/openid-configuration`, and **Allowed clients** must contain your Client ID.",
     403: "Access denied. The agent may still be set to **IAM** auth, or your token's client isn't in **Allowed clients**.",
-    404: "Agent not found. Check the ARN, region and endpoint. For a harness, confirm the harness ARN in the Bedrock console (your agent/harness → details).",
-    400: "Bad request. Check the request body template matches what your agent expects.",
+    404: "Agent not found. Check the harness ARN on its details page in the console, and the region.",
+    400: "Bad request. The harness rejected the message; the raw response below says why.",
     424: "The agent itself failed. Check its logs in CloudWatch.",
     500: "The agent itself failed. Check its logs in CloudWatch.",
   };
-  if (raw.includes("managed by a harness"))
-    return "**That's a harness-managed runtime.** Paste the **harness ARN** (`…:harness/<id>`) instead of the `…:runtime/harness_…` one.\n\n```\n" + raw.slice(0, 800) + "\n```";
   return `**HTTP ${status}.** ${hints[status] || "Unexpected error."}\n\n\`\`\`\n${raw.slice(0, 1500)}\n\`\`\``;
 }
 
