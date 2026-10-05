@@ -258,22 +258,32 @@ Here you build a second door that does see you, and you put a guard on it.
    > `<target name>___<tool name>`, so the rules below only work if the target is
    > called `orders`.
 
-4. Copy the gateway's **ARN** and its **URL**. The URL ends in `/mcp`.
+4. Give gateway B permission to keep a policy session. Open gateway B in
+   **AgentCore** and click its **service role**. In IAM choose **Add permissions**,
+   then **Create inline policy**, then **JSON**. Paste the contents of
+   `policies/gateway_temporal_iam.json` from this repo, choose **Next**, name it
+   `policy-sessions`, and create it.
 
-5. In the tester, press **Find my resources**. **Gateway (Tools tab)** gets a tick,
+   > The tester tags every Tools call with a session, so the policies can see what
+   > happened earlier. Without this permission, every allowed call fails with
+   > `Failed to get workload identity token` once a policy engine is attached.
+
+5. Copy the gateway's **ARN** and its **URL**. The URL ends in `/mcp`.
+
+6. In the tester, press **Find my resources**. **Gateway (Tools tab)** gets a tick,
    and the **Tools** tab starts working.
 
-6. In the Tools tab, call `orders___find_orders` with `customer_id` set to `alice`.
+7. In the Tools tab, call `orders___find_orders` with `customer_id` set to `alice`.
    It works. Now set it to `bob`. **It also works.** There is no guard yet.
 
 ### Add the guard
 
-7. Go to **AgentCore**, then **Policy**, and create a policy engine named
+8. Go to **AgentCore**, then **Policy**, and create a policy engine named
    `refund_identity_<your initials>`. Use letters, digits and underscores only. No
    hyphens.
 
-8. Add a policy called `identity_binding`. Replace `YOUR_GATEWAY_B_ARN` with the ARN
-   from step 4.
+9. Add a policy called `identity_binding`. Replace `YOUR_GATEWAY_B_ARN` with the ARN
+   from step 5.
 
    ```cedar
    permit (
@@ -295,7 +305,7 @@ Here you build a second door that does see you, and you put a guard on it.
    This says: you may use these four tools, but only when the `customer_id` you
    send matches the user name on your token.
 
-9. Add a second policy called `refund_cap_200`, same ARN:
+10. Add a second policy called `refund_cap_200`, same ARN:
 
    ```cedar
    forbid (
@@ -311,7 +321,7 @@ Here you build a second door that does see you, and you put a guard on it.
    This says: never pay out more than $200, whoever asks. A `forbid` always beats a
    `permit`.
 
-10. Attach the policy engine to gateway B and set the mode to **LOG_ONLY** first.
+11. Attach the policy engine to gateway B and set the mode to **LOG_ONLY** first.
     In this mode it writes down what it would have done but still lets everything
     through. Make a few calls, then switch it to **ENFORCE**.
 
@@ -334,12 +344,6 @@ Log in as **alice** and use the Tools tab:
 Cedar judges each call on its own. It cannot know whether you looked at an order
 before you asked to refund it. Dogwood is Cedar plus the history of your session,
 so it can.
-
-11. Give gateway B permission to keep a session. Open gateway B in **AgentCore** and
-    click its **service role**. In IAM choose **Add permissions**, then **Create
-    inline policy**, then **JSON**. Paste the contents of
-    `policies/gateway_temporal_iam.json` from this repo, choose **Next**, name it
-    `policy-sessions`, and create it.
 
 12. In your policy engine, add a policy called `refund_after_lookup`. Choose
     **Dogwood** as the policy language, and replace `YOUR_GATEWAY_B_ARN` again:

@@ -56,7 +56,7 @@ Use it to demo, or to compare against when an attendee is stuck.
 | Harness | `refund_agent_datamax-QCI0fxNU0y`, Custom JWT, memory attached |
 | Gateway A | `refund-agent-gateway-2jn3rd7vee`, AWS IAM |
 | Gateway B | `refund-gateway-identity-pju6ekwsja`, Custom JWT |
-| Policy engine | `refund_identity-krpy87hgua`, ENFORCE, the two Cedar policies (no Dogwood yet) |
+| Policy engine | `refund_identity-krpy87hgua`, ENFORCE, `identity_binding`, `refund_cap_200`, `refund_after_lookup` (Dogwood) |
 | Lambda | `refund_agent_tool` |
 
 `mateo` has a permanent password (`Workshop#2026`). `alice` and `bob` are still on
@@ -87,7 +87,8 @@ first login, so the password-change screen can be demonstrated.
 | Agent asks "what is your customer id?" | **Tell the agent who I am** is not ticked | tick it in the tester's Settings |
 | Tester: a resource stays unticked | it has not been created yet, or (shared account) the name does not follow `refund_<initials>` | create it, or fill that field under Settings → Enter manually |
 | Tools tab: every call fails with a validation error about a missing session | a Dogwood policy is attached and the call has no `x-amzn-bedrock-agentcore-policy-session-id` | use the tester's Tools tab, which sends it. Their own clients must send it too |
-| Tools tab: every call fails with `AccessDenied` on `GetWorkloadAccessToken` | gateway B's role lacks the M5 step 11 inline policy | add `policies/gateway_temporal_iam.json` to the gateway's service role |
+| Tools tab: allowed calls fail with `Failed to get workload identity token`, denials still work | the tester always sends a policy session, and the gateway needs `GetWorkloadAccessToken` for it as soon as a policy engine is attached | add the M5 step 4 inline policy |
+| Tools tab: every call fails with `AccessDenied` on `GetWorkloadAccessToken` | gateway B's role lacks the M5 step 4 inline policy | add `policies/gateway_temporal_iam.json` to the gateway's service role |
 | Refund after a lookup is still denied | the lookup was in another policy session, was itself denied, or the refund was sent before the lookup's response was recorded | same session, a lookup that was allowed, and a second's pause |
 | HTTP 409 `ConflictException` right after adding the Dogwood policy | adding or changing a temporal policy ends open sessions | expected. The tester starts a new session and retries by itself |
 | Tester: "Lookup failed: AccessDenied" | the `chat-ui-lookup` inline policy is missing from the tester Lambda's role | add it (LABS.md, The tester app, step 5) |
