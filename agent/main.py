@@ -1,14 +1,9 @@
 """Minimal customer-support refund agent on Amazon Bedrock AgentCore.
 
 Runs locally with `agentcore dev` (chat UI on :8081) using in-memory demo data
--- no Docker, no DynamoDB. Two managed AgentCore services light up when deployed,
-each guarded by the env var `agentcore deploy` sets (unset locally, so local dev
-needs no cloud):
-
-  * Memory  -> conversation persistence across turns (memory/session.py). Local
-               dev falls back to a small in-process dict.
-  * Gateway -> the payout runs as a managed Lambda MCP tool (see infra/) instead
-               of the in-process issue_refund below.
+-- no Docker, no DynamoDB. AgentCore Memory lights up when deployed, guarded by the
+env var `agentcore deploy` sets (memory/session.py); locally a small in-process dict
+remembers the conversation, so local dev needs no cloud.
 """
 import contextvars
 import os
@@ -75,24 +70,7 @@ def issue_refund(order_id: str) -> str:
     return f"Refunded ${o['amount']} for {order_id} (reference rf_{order_id})."
 
 
-def _gateway_tools() -> list:
-    """The payment Gateway's MCP tools -- only when deployed (see infra/).
-
-    `agentcore deploy` sets PAYMENT_GATEWAY_URL; locally it's unset, so this is
-    empty and the in-process issue_refund above is used instead.
-    """
-    url = os.getenv("PAYMENT_GATEWAY_URL")
-    if not url:
-        return []
-    from mcp.client.streamable_http import streamablehttp_client
-    from strands.tools.mcp.mcp_client import MCPClient
-    return [MCPClient(lambda: streamablehttp_client(url))]
-
-
-GATEWAY_TOOLS = _gateway_tools()
-# When the gateway is deployed it provides the payout (process_refund); locally
-# the in-process issue_refund is used instead.
-TOOLS = [list_orders, lookup_order] + (GATEWAY_TOOLS or [issue_refund])
+TOOLS = [list_orders, lookup_order, issue_refund]
 
 
 @app.entrypoint

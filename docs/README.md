@@ -3,7 +3,7 @@
 Attendees run a refund agent on their laptop (M1), then build the whole managed
 flow in the AWS console (M2 to M6): a login, an agent, memory, tools, and
 authorization policies. They drive all of it from a small tester app
-(`ui/lambda_function.py`) that each attendee deploys as a Lambda in their account. Teaching staff explain the ideas. These docs are only the steps.
+(`chat/lambda_function.py`) that each attendee deploys as a Lambda in their account. Teaching staff explain the ideas. These docs are only the steps.
 
 <<<<<<< Updated upstream
 - **[refund-agent-workshop.ipynb](refund-agent-workshop.ipynb)** — the console-based workshop guide (Harness → Lambda → Gateway → tools). No code to run.
@@ -77,6 +77,6 @@ make dev                   # from the repo root, chat UI on http://localhost:808
 ```
 
 Then the tester: attendees create it in the Lambda console ("The tester app" in
-LABS.md), or staff can run `make ui-deploy` with the attendee's credentials. It finds
+LABS.md), or staff can run `make chat-deploy` with the attendee's credentials. It finds
 the pool, client, harness and JWT gateway in the account by itself, so there is no
-config file. `make ui-down` removes it.
+config file. `make chat-down` removes it.

@@ -1,64 +1,45 @@
-# RefundAgent — a minimal Amazon Bedrock AgentCore agent
+# Refund Agent — AgentCore Workshop
 
-A customer-support **refund agent**: a signed-in customer can list orders, check
-status, and request refunds. It runs **locally with one command** — no Docker,
-no database — and grows into two managed AgentCore services when you deploy.
+In this workshop, people build a customer-service **refund agent** on **Amazon Bedrock AgentCore**. A signed-in customer can list their orders, check one, and ask for a refund. Along the way they add a Cognito login, memory, tools behind a gateway, and Cedar policies that refuse to let one customer touch another's orders.
 
-## Run it
+M1 runs the agent on a laptop. Everything after that is set up by hand in the AWS Console, in **Europe (Frankfurt) eu-central-1**. The code and policies in this repo are pasted into the console as they are; there is no build step.
 
-Prereqs: **AWS credentials** with Bedrock access to Claude, and the **AgentCore
-CLI**, pinned: `npm install -g @aws/agentcore@0.31.0`.
-
-```bash
-make dev        # runs the agent; open the chat UI at http://localhost:8081
-```
-
-Try: *"what orders do I have?"*, *"refund A-1001"*. The login-less chat UI signs
-you in as `alice` by default (`LOCAL_DEV_CUSTOMER=bob make dev` to switch).
-
-Demo data (in `main.py`): `A-1001` (alice, delivered), `A-1002` (alice, shipped),
-`B-2001` / `B-2002` (bob, delivered). Only **delivered** orders can be refunded.
-
-## Files
+## Architecture
 
 ```
-app/RefundAgent/
-  main.py            the whole agent: BedrockAgentCoreApp entrypoint, 3 tools,
-                     in-memory orders, streamed replies
-  memory/session.py  AgentCore Memory wiring (no-op locally; real when deployed)
-  model/load.py      the Bedrock model (Claude)
-infra/               optional: the payout as a managed Gateway + Lambda (see infra/README.md)
-agentcore/           project config (agentcore.json) + CDK for deploy
+User → tester page (Cognito sign-in) ─┬→ Chat:  Harness → Gateway A (IAM) ─┬→ Lambda tools
+                                      └→ Tools: Gateway B (JWT + Cedar) ───┘
 ```
 
-## How it works
+The Chat path goes through the agent, so the gateway only sees the agent. The Tools path carries the user's own token, so the policy engine sees who is asking and can say no. That difference is the point of the workshop.
 
-`agentcore dev` serves the app as an HTTP endpoint (chat UI on :8081). Each
-request `{prompt, customer_id?, session_id?}` binds the caller, runs a Strands
-`Agent` (Bedrock Claude) that calls the tools, and streams the reply.
+## Where to start
 
-Two managed services are wired but **guarded by an env var**, so they're inert
-locally and light up only when deployed:
+| You are | Read |
+|---|---|
+| A workshop attendee | [`docs/LABS.md`](docs/LABS.md): the tester, then M1–M6 |
+| An instructor or maintainer | [`docs/STAFF.md`](docs/STAFF.md) for setup, errors attendees hit, and resets; [`docs/README.md`](docs/README.md) for the facilitator overview |
 
-| Service | Local (`make dev`) | Deployed (`make infra-deploy`) |
+## Repository
+
+| Path | What | Used in |
 |---|---|---|
-| **Memory** | in-process dict remembers the conversation | AgentCore **Memory** persists it (`memory/session.py`) |
-| **Gateway** | `issue_refund` runs in-process | the payout is a managed **Lambda MCP tool** (`infra/`) |
+| `docs/LABS.md` | Step-by-step lab instructions | Attendees |
+| `docs/STAFF.md` | Gotchas, IAM policies, resets | Instructors |
+| `docs/refund-agent-workshop.ipynb` | The workshop story as a notebook, no code to run | Instructors |
+| `agent/` | The local agent: `main.py` with three tools and in-memory orders | M1 (`make dev`) |
+| `agentcore/agentcore.json` | AgentCore CLI project file for `make dev` | M1 |
+| `tools/lambda_function.py` | Lambda code for the four order and refund tools | M5 |
+| `tools/tool-schema.json` | Tool definitions for both gateway targets | M5, M6 |
+| `policies/identity-binding.cedar` | A customer may only touch their own orders | M6 |
+| `policies/refund-cap.cedar` | No refunds over $200 | M6 |
+| `chat/lambda_function.py` | The tester: sign-in page, chat, tools tab, and a lookup that finds your resources | All labs after M1 |
+| `chat/lambda_policy.json` | Lets the tester read the names of your pool, harness and gateway | Tester setup |
 
-That's the whole point of the shape: the same code runs on your laptop and, with
-`agentcore deploy`, against real AgentCore Memory + Gateway — no rewrite.
+## Shortcuts for staff
 
-## Deploy the managed services (optional)
-
-```bash
-make infra-preview   # dry-run: what AWS resources would be created (no spend)
-make infra-deploy    # create the Gateway + Lambda + Memory
-make infra-down      # remove them again
 ```
-
-See [`infra/README.md`](infra/README.md) for the Gateway/Lambda details and cost notes.
-
-## Running this as a workshop
-
-Facilitator + attendee material is in [`workshop/`](workshop/README.md) — the
-lab steps, prereqs, and a staff cheat sheet.
+make dev           # M1: run the agent locally (needs npm install -g @aws/agentcore@0.31.0)
+make chat-deploy   # create or update the tester in the current account, prints its URL
+make chat-down     # remove it again
+```

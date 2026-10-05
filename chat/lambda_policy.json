@@ -1,0 +1,9 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["cognito-idp:ListUserPools", "cognito-idp:ListUserPoolClients",
+               "bedrock-agentcore:ListHarnesses", "bedrock-agentcore:ListGateways"],
+    "Resource": "*"
+  }]
+}

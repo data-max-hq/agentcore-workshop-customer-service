@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy (or update) the hosted chat UI into whatever account your AWS credentials point at.
 # Easiest: open AWS CloudShell (top bar of the AWS console) and run
-#   git clone https://github.com/data-max-hq/agentcore-workshop-customer-service && bash agentcore-workshop-customer-service/ui/deploy.sh
+#   git clone https://github.com/data-max-hq/agentcore-workshop-customer-service && bash agentcore-workshop-customer-service/chat/deploy.sh
 # Usage: ./deploy.sh            (region defaults to eu-central-1)
 #        OWNER=you ./deploy.sh  (value for the owner tag some accounts require)
 set -euo pipefail
@@ -16,8 +16,7 @@ if ! aws iam get-role --role-name $ROLE >/dev/null 2>&1; then
   aws iam attach-role-policy --role-name $ROLE --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 fi
 # read-only: just enough for /lookup to find an attendee's resources by name
-aws iam put-role-policy --role-name $ROLE --policy-name lookup-readonly --policy-document \
-  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["cognito-idp:ListUserPools","cognito-idp:ListUserPoolClients","bedrock-agentcore:ListHarnesses","bedrock-agentcore:ListGateways"],"Resource":"*"}]}'
+aws iam put-role-policy --role-name $ROLE --policy-name lookup-readonly --policy-document file://lambda_policy.json
 
 if aws lambda get-function --region $REGION --function-name $FN >/dev/null 2>&1; then
   aws lambda update-function-code --region $REGION --function-name $FN --zip-file "fileb://$ZIP" >/dev/null

@@ -126,7 +126,7 @@ reading the note at the bottom of this file.
 1. One AWS account with console access for everyone, region `eu-central-1`.
 2. Bedrock model access to a Claude model in `eu-central-1`.
 3. Decide the Lambda approach. Either pre-deploy one shared Lambda from
-   `infra/orders/lambda_function.py` and hand out its ARN, or let each attendee
+   `tools/lambda_function.py` and hand out its ARN, or let each attendee
    paste the file into the Lambda console. It is one file with no dependencies, so
    pasting works fine and teaches more.
 4. Tell everyone the naming rule: suffix every resource with your initials.
@@ -186,38 +186,25 @@ first login, so the password-change screen can be demonstrated.
 
 ## What each piece is, for answering questions
 
-- `app/RefundAgent/main.py` is the **local only** agent used in M1. It has its own
+- `agent/main.py` is the **local only** agent used in M1. It has its own
   small set of tools and its own order list, and it defaults the customer to
   `alice`. It is not used in M2 to M6.
-- `infra/orders/lambda_function.py` is the **real** tool backend for M5 and M6. Four
+- `tools/lambda_function.py` is the **real** tool backend for M5 and M6. Four
   tools: `find_orders`, `get_order_transaction`, `process_refund`,
   `get_refund_status`. Every tool takes `customer_id` and only answers for that
   customer.
 - The Lambda does **not** check who the caller really is. That is on purpose. The
   policy engine on gateway B is what makes `customer_id` honest. Keeping the check
   out of the Lambda is what lets M5 and M6 look different.
-- `infra/orders/tool-schema.json` is the same four tools in the shape the gateway
+- `tools/tool-schema.json` is the same four tools in the shape the gateway
   target wants. Both gateways use it.
-- `agentcore/policies/identity-binding.cedar` and `refund-cap.cedar` are the two M6
+- `policies/identity-binding.cedar` and `refund-cap.cedar` are the two M6
   policies, with comments explaining the three validator errors we hit writing them.
-- `ui/lambda_function.py` is the tester, one file holding the page and a `/lookup` route. The Chat tab calls the harness. The Tools tab speaks
+- `chat/lambda_function.py` is the tester, one file holding the page and a `/lookup`
+  route. The Chat tab calls the harness. The Tools tab speaks
   MCP straight to gateway B with the user's token.
 - The chat UI on :8081 during M1 is AWS's own agent inspector. It ships with
   `agentcore dev`. We did not write it.
-
-## Older files still in the repo
-
-These are from the earlier CLI-based version of the workshop. They are not used by
-M1 to M6 and may confuse people who go looking.
-
-- `agentcore/policies/refund.cedar` and `refund.dogwood` refer to tool names that no
-  longer exist (`payment___list_orders` and friends).
-- `infra/payment/handler.py` is the old two-tool payout Lambda.
-- `infra/interceptor/handler.py` is an unused gateway interceptor.
-- `agentcore/agentcore.json` plus `make infra-deploy` still describe the old CDK
-  deployment. It is untested and is not part of these labs.
-
-Delete them when you are sure nothing in your run depends on them.
 
 ## If you want to guard gateway A too
 

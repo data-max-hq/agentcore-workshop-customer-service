@@ -42,25 +42,14 @@ account as a Lambda, so you need nothing on your laptop. Set it up once:
 1. Go to **Lambda** and choose **Create function**.
 2. Choose **Author from scratch**. Name it `refund_ui_<your initials>`, runtime
    **Python 3.13**. Choose **Create function**.
-3. In the **Code** tab, paste the contents of `ui/lambda_function.py` from this repo
+3. In the **Code** tab, paste the contents of `chat/lambda_function.py` from this repo
    over the default code, then choose **Deploy**.
 4. Go to **Configuration**, then **General configuration**, then **Edit**. Set the
    **Timeout** to **15** seconds and save.
 5. Go to **Configuration**, then **Permissions**, and click the role name. In the
    IAM page that opens, choose **Add permissions**, then **Create inline policy**,
-   then **JSON**. Paste this, choose **Next**, name it `chat-ui-lookup`, and create it:
-
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [{
-       "Effect": "Allow",
-       "Action": ["cognito-idp:ListUserPools", "cognito-idp:ListUserPoolClients",
-                  "bedrock-agentcore:ListHarnesses", "bedrock-agentcore:ListGateways"],
-       "Resource": "*"
-     }]
-   }
-   ```
+   then **JSON**. Paste the contents of `chat/lambda_policy.json` from this repo,
+   choose **Next**, name it `chat-ui-lookup`, and create it.
 
    > This only lets the app read the names of your pool, harness and gateway, so
    > you never have to copy IDs into it.
@@ -222,7 +211,7 @@ them in front of the agent.
 
 1. Go to **Lambda** and choose **Create function**.
 2. Name it `refund_tool_<your initials>`, runtime **Python 3.12** or newer.
-3. Paste the contents of `infra/orders/lambda_function.py` from this repo over the
+3. Paste the contents of `tools/lambda_function.py` from this repo over the
    default code, then choose **Deploy**.
 4. Copy the function ARN.
 
@@ -239,7 +228,7 @@ B-2002, mateo owns M-3001 and M-3002.
 9. Add a target:
    - Target name: `orders`
    - Target type: **Lambda**, pointing at the function you just made
-   - Tool schema: paste `infra/orders/tool-schema.json` from this repo
+   - Tool schema: paste `tools/tool-schema.json` from this repo
    - Outbound auth: the gateway IAM role
 10. Create it and wait for **READY**.
 
