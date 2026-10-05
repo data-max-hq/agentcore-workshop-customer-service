@@ -4,17 +4,11 @@ Attendees build the whole managed flow in the AWS console (M1 to M5): a login, a
 agent, memory, tools, and authorization policies. They install nothing. They drive all of it from a small tester app
 (`chat/lambda_function.py`) that each attendee deploys as a Lambda in their account. Teaching staff explain the ideas. These docs are only the steps.
 
-<<<<<<< Updated upstream
-- **[refund-agent-workshop.ipynb](refund-agent-workshop.ipynb)** — the console-based workshop guide (Harness → Lambda → Gateway → tools). No code to run.
-- **[LABS.md](LABS.md)** — the attendee steps (M1–M4), terse, checkpoint-based.
-- **[STAFF.md](STAFF.md)** — gotchas cheat sheet + the deploy rehearsal checklist. **Staff read this first.**
-=======
 Everything is in **eu-central-1**.
 
 - **[LABS.md](LABS.md)** is what attendees follow.
 - **[STAFF.md](STAFF.md)** is the setup checklist and the error list. Staff read
   this first.
->>>>>>> Stashed changes
 
 ## The arc
 
