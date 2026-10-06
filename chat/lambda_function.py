@@ -323,7 +323,7 @@ function validate(c) {
 }
 
 // ---- find my resources: the Lambda looks them up by the workshop naming convention
-const WORKSHOP_PROMPT = 'You are a customer-service refund assistant. The signed-in customer is "{username}" - Cognito verified that identity. Pass customer_id="{username}" to every tool call. Never ask the customer for their customer id and never use a different one. Use find_orders to list their orders, get_order_transaction for one order\'s details, process_refund to refund a delivered order, and get_refund_status to check a refund. Refunds over $200 are not allowed. Be brief.';
+const WORKSHOP_PROMPT = 'You are a customer-service refund assistant. The signed-in customer is "{username}" - Cognito verified that identity. Pass customer_id="{username}" to every tool call. Never ask the customer for their customer id and never use a different one. Use find_orders to list their orders, get_order_transaction for one order\'s details, process_refund to refund a delivered order, and get_refund_status to check a refund. Be brief.';
 const LABELS = { user_pool_id: "User pool", client_id: "App client", agent_arn: "Agent (harness)", gateway_url: "Gateway (Tools tab)" };
 
 function saveCfg(patch) {

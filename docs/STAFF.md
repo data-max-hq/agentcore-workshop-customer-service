@@ -23,12 +23,16 @@ This is why the workshop uses **two gateways over one Lambda**:
 |---|---|---|
 | Inbound auth | AWS IAM | Custom JWT |
 | Who calls it | the harness | the tester app, with the user's token |
-| Policy engine | none | yes, in ENFORCE |
-| What the policy sees | the harness role | `AgentCore::OAuthUser` with the user's claims as tags |
+| Policy engine | from the end of M5: `refund_agent_<initials>`, ENFORCE | `refund_identity_<initials>`, ENFORCE |
+| What the policy sees | the harness role (`AgentCore::IamEntity`) | `AgentCore::OAuthUser` with the user's claims as tags |
+| Rules | agent may use the tools, $200 cap, refund after lookup (Dogwood) | identity binding, $200 cap, refund after lookup (Dogwood) |
 
-Gateway A is left unguarded on purpose. The contrast between the two doors is the
-lesson in M4 and M5. Do not "fix" it by adding a policy engine to gateway A without
-reading the note at the bottom of this file.
+Gateway A stays unguarded through M4 and most of M5, so attendees can see the agent
+path is open. At the end of M5 ("Guard the agent's door too") it gets its own policy
+engine with every rule that does not need the user: the $200 cap and the Dogwood
+lookup rule. The identity rule stays on gateway B only, because gateway A has no
+user to compare. That last gap is the point of the debrief, see the bottom of this
+file.
 
 ## What to set up before the room starts
 
@@ -83,12 +87,21 @@ first login, so the password-change screen can be demonstrated.
 | Lambda console **Test** fails | the console cannot set the tool name the gateway passes in `context.client_context` | test through the gateway instead: the tester's Tools tab |
 | `Runtime.ImportModuleError` or handler not found | file name and handler setting do not match | file `lambda_function.py`, handler `lambda_function.lambda_handler` (the console default) |
 | Agent answers without calling a tool, or makes up an order | the gateway is not in the harness's tools, or the prompt does not push it to use them | check the harness's Tools list and the system prompt from M2 |
+| M5 step 10: no option to write the policy in natural language, or it cannot see the tools | generation uses the gateway's tool schema, so it needs the policy engine and gateway B to exist, with gateway B's `orders` target READY | finish steps 1 to 8 first and pick gateway B. As a fallback, paste `policies/refund-cap.cedar` with their gateway B ARN |
+| M5 step 10: the generated policy is a `permit`, the wrong tool, or a different amount | the sentence was read differently than meant | reword it plainly ("Forbid every user from processing a refund when the refund amount is greater than $200") and generate again. Compare with `policies/refund-cap.cedar` |
+| M5 step 10: generated policy uses `context.input.amount > 200` and fails validation | `amount` is a Cedar decimal, so plain `>` does not type-check | regenerate, or edit it to `context.input.amount.greaterThan(decimal("200.0"))` before saving |
 | Cedar: `unable to guarantee safety of access to tag "username"` | `getTag` with no presence check | add `principal.hasTag("username") &&` in front of the comparison |
 | Cedar: `unexpected type: expected Long but saw decimal` | the tool's `amount` is a JSON Schema `number`, which Cedar treats as a decimal | use `context.input.amount.greaterThan(decimal("200.0"))`, not `> 200` |
 | Cedar: `Overly Restrictive: Policy Engine will deny every request for AgentCore::IamEntity` | a bare `principal` in a `forbid` also covers IAM callers, and no `permit` exists for them | scope it: `principal is AgentCore::OAuthUser` |
 | Tools tab: every call fails with code `-32022`, unsupported protocol version | the MCP request is missing the `MCP-Protocol-Version` header | already handled in the tester. If they wrote their own client, send `MCP-Protocol-Version: 2025-11-25`. Setting it in the `initialize` params alone is not enough. |
 | Tools tab shows no tools | gateway URL wrong, or the target is not READY | check the URL ends in `/mcp` and the target status |
 | Every Tools call is denied, even their own name | the gateway B target is not named `orders`, so the action names do not match the policies | recreate the target named `orders`, or edit the action names in both policies |
+| M4 step 17: the agent checks the tool anyway, so there is no wrong answer to show | the model followed the tool hints in the tester's prompt | that is a fine outcome: point out nothing *forced* it. To show the stale memory, open the memory's records under `/actors/mateo/facts/` and compare with the Lambda |
+| M4 step 17: still answers from memory after step 18 | the prompt change was not saved, or **Tell the agent who I am** was toggled, which resets the prompt | re-open **Settings → Enter manually** and check the sentence is there, then a new chat |
+| M4 step 14: mateo's agent already says something odd about M-3001 | earlier tests left facts in mateo's memory | delete the records under `/actors/mateo/facts/`, or use the attendee's own user and one of their orders |
+| M5 tests fail on M-3001 | step 20 was skipped, so it is still `cancelled` | set it back to `delivered` and **Deploy** |
+| An attendee's own user sees no orders | they added themselves in M1 but no orders in the Lambda, or `customer_id` in their orders does not match the Cognito user name exactly (case, spelling) | compare the token panel's `username` with the `customer_id` in their `ORDERS` entries, fix, **Deploy** the Lambda |
+| Lambda `Runtime.UserCodeSyntaxError` after adding their own orders | a missing comma or brace in the new `ORDERS` entry | each entry ends with `},`; compare with the example in LABS M4 step 3 |
 | Agent asks "what is your customer id?" | **Tell the agent who I am** is not ticked | tick it in the tester's Settings |
 | Tester: a resource stays unticked | it has not been created yet, or (shared account) the name does not follow `refund_<initials>` | create it, or fill that field under Settings → Enter manually |
 | Tools tab: every call fails with a validation error about a missing session | a Dogwood policy is attached and the call has no `x-amzn-bedrock-agentcore-policy-session-id` | use the tester's Tools tab, which sends it. Their own clients must send it too |
@@ -97,7 +110,8 @@ first login, so the password-change screen can be demonstrated.
 | Refund after a lookup is still denied | the lookup was in another policy session, was itself denied, or the refund was sent before the lookup's response was recorded | same session, a lookup that was allowed, and a second's pause |
 | HTTP 409 `ConflictException` right after adding the Dogwood policy | adding or changing a temporal policy ends open sessions | expected. The tester starts a new session and retries by itself |
 | Tester: "Lookup failed: AccessDenied" | the `chat-ui-lookup` inline policy is missing from the tester Lambda's role | add it (LABS.md, The tester app, step 5) |
-| Refund denied unexpectedly | over the $200 cap, or the order is not delivered, or it was already refunded | expected. Check the order in the Lambda data. |
+| Refund denied unexpectedly | over the $200 cap (a policy denial, from the gateway), or the order is not delivered, or it was already refunded (a Lambda error) | expected. Check the order in the Lambda data. |
+| A refund over $200 went through | no policy engine on that gateway yet, or it is in LOG_ONLY. The Lambda has no cap of its own, on purpose | expected before ENFORCE. Refunds reset on the Lambda's next cold start |
 
 ## The IAM policies (copy-paste)
 
@@ -216,14 +230,25 @@ LABS gives attendees `tools/tool-schema.json` to paste. For questions:
   browsers may not send the policy session header Dogwood needs. The gateway still
   gets the user's own token, so policies still see the user.
 
-## If you want to guard gateway A too
+## Guarding gateway A (end of M5)
 
-You can, but it is more work than it looks, and you lose the M4 and M5 contrast.
-
-- Cedar denies by default, so attaching a policy engine to gateway A without a
-  `permit` for `AgentCore::IamEntity` will block the agent from every tool.
-- Gateway A's target in the reference account is named `target-quick-start-grvilq`,
-  so its action names are `target-quick-start-grvilq___find_orders` and so on. You
-  would want to recreate that target as `orders` first.
-- You still cannot write per-user rules there. Only rules about the arguments, like
-  the $200 cap, and about the agent's own role.
+- Cedar denies by default, so the `agent_access` permit for `AgentCore::IamEntity`
+  must exist before the engine is attached, or the agent loses every tool. If an
+  attendee's chat suddenly cannot find any orders after step 18, this is why.
+- The rules use `principal is AgentCore::IamEntity`, not `OAuthUser`: on this door
+  the caller is the harness role. Policies written for gateway B do nothing here.
+- Action names assume the target is named `orders` (M4 step 9). Gateway A's target
+  in the reference account is named `target-quick-start-grvilq`, so recreate it as
+  `orders` before adding these policies there.
+- **Not yet verified:** whether the harness sends a policy session id when it calls a
+  gateway. The Dogwood rule (step 16) needs one. If it does not, every chat tool call
+  fails with a missing-session error once the engine is attached. The fix is to
+  delete `agent_refund_after_lookup`; the cap still works. Check this in rehearsal
+  and update LABS either way.
+- Also not verified: whether the console lets one policy engine be attached to two
+  gateways. The labs avoid the question with a second engine.
+- Per-user rules are still impossible here. If attendees ask "so is the agent safe
+  now?": the agent can no longer refund over $200 or refund an order it never looked
+  up, but it can still be talked into using another customer's id. Carrying the
+  user's identity through the agent needs either agent code that forwards the token
+  (export the harness to Strands) or an identity provider with token exchange.

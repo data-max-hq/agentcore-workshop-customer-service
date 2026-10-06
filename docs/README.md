@@ -17,10 +17,10 @@ Everything is in **us-east-1**.
 | M1 Identity | Cognito pool and users, the tester finds them | console | 15 min |
 | M2 The agent | create a harness with JWT login, log in with the tester | console | 15 min |
 | M3 Memory | short-term only with your own memory, then managed long-term memory | console | 15 min |
-| M4 Tools | Lambda, gateway A, attach to the agent | console | 20 min |
-| M5 Policies | gateway B, policy engine, Cedar rules, then a Dogwood rule | console | 35 min |
+| M4 Tools | Lambda, gateway A, attach to the agent, then memory vs the order system | console | 30 min |
+| M5 Policies | gateway B, policy engine, Cedar rules, a Dogwood rule, then the same rules on gateway A | console | 45 min |
 
-Budget about 100 minutes, plus 10 for the tester. If you are short on time, M5 is the one that makes the
+Budget about 120 minutes, plus 10 for the tester. If you are short on time, M5 is the one that makes the
 point, so cut M3 before you cut M5.
 
 ## The idea the workshop is built around
@@ -39,9 +39,11 @@ you --login--> Cognito
 In M4 the agent gets tools and looks secure. It is not: the user's name is just a
 line in a prompt, and the model follows it out of politeness. In M5 the second
 door proves who you are and a policy engine checks every tool call against it.
+M5 ends by putting every rule that does not need the user (the $200 cap and the
+lookup rule) on gateway A too, so attendees see them work through the chat. The
+identity rule cannot follow, and that gap is the debrief.
 
-M4 and M5 are meant to feel different. Do not add a policy engine to gateway A
-without reading the last section of STAFF.md.
+Read the last section of STAFF.md before running the end of M5.
 
 ## Prerequisites
 

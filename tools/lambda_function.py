@@ -24,8 +24,6 @@ from typing import Any, Dict
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-REFUND_CAP = 200.00  # mirrored by a Cedar `forbid` on Door B
-
 # Mock database: order_id -> order + its payment transaction. All values are fake.
 ORDERS: Dict[str, Dict[str, Any]] = {
     "A-1001": {
@@ -49,7 +47,7 @@ ORDERS: Dict[str, Dict[str, Any]] = {
                         "payment_method": "card ending 4242", "paid_at": "2026-08-30T09:02:00Z"},
         "refund": {"refund_id": "rf_2b77e0", "amount": 35.00, "refunded_at": "2026-09-04T11:00:00Z"},
     },
-    "A-1004": {  # over the $200 cap -- the guardrail demo
+    "A-1004": {  # over $200 -- the refund-cap policy demo
         "customer_id": "alice", "item": "4K monitor", "order_date": "2026-09-28",
         "status": "delivered",
         "transaction": {"transaction_id": "txn_a91e55", "amount": 300.00, "currency": "USD",
@@ -77,7 +75,7 @@ ORDERS: Dict[str, Dict[str, Any]] = {
                         "payment_method": "card ending 7788", "paid_at": "2026-09-15T14:30:00Z"},
         "refund": None,
     },
-    "M-3002": {  # over the $200 cap
+    "M-3002": {  # over $200
         "customer_id": "mateo", "item": "Monitor arm", "order_date": "2026-09-22",
         "status": "delivered",
         "transaction": {"transaction_id": "txn_e4471c", "amount": 210.00, "currency": "USD",
@@ -183,9 +181,8 @@ def process_refund(event: Dict[str, Any]) -> Dict[str, Any]:
     paid = order["transaction"]["amount"]
     if amount <= 0 or amount > paid:
         return {"error": f"Refund must be between $0 and the ${paid:.2f} paid for {order_id}."}
-    # Belt and braces: Cedar enforces this on Door B, but Door A has no policy engine.
-    if amount > REFUND_CAP:
-        return {"error": f"Refunds over ${REFUND_CAP:.2f} need a human. Requested ${amount:.2f}."}
+    # No $200 cap here on purpose: the cap is a gateway policy (M5), so when a refund
+    # over $200 is refused, it was the policy that refused it.
 
     refund = {"refund_id": "rf_" + order["transaction"]["transaction_id"][4:],
               "amount": amount, "status": "settled"}
@@ -243,7 +240,7 @@ if __name__ == "__main__":
     _, r = call("process_refund", {"customer_id": "alice", "order_id": "A-1003", "amount": 10})
     assert "already refunded" in r["result"]["error"], r
     _, r = call("process_refund", {"customer_id": "alice", "order_id": "A-1004", "amount": 300})
-    assert "need a human" in r["result"]["error"], r             # over the cap
+    assert r["result"]["status"] == "settled", r                 # no cap here: that's the policy's job
     _, r = call("process_refund", {"customer_id": "alice", "order_id": "A-1001", "amount": 49})
     assert r["result"]["status"] == "settled", r                 # the happy path
     _, r = call("get_refund_status", {"customer_id": "alice", "order_id": "A-1001"})
