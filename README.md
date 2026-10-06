@@ -7,8 +7,8 @@ Everything is set up by hand in the AWS Console, in **US East (N. Virginia) us-e
 ## Architecture
 
 ```
-User → tester page (Cognito sign-in) ─┬→ Chat:  Harness → Gateway A (IAM) ─┬→ Lambda tools
-                                      └→ Tools: Gateway B (JWT + Cedar) ───┘
+User → tester page (Cognito sign-in) ─┬→ Chat:  Harness → refund-gw (IAM) ───┬→ Lambda tools
+                                      └→ Tools: refund-gw-jwt (JWT + Cedar) ─┘
 ```
 
 The Chat path goes through the agent, so the gateway only sees the agent. The Tools path carries the user's own token, so the policy engine sees who is asking and can say no. That difference is the point of the workshop.
@@ -32,7 +32,7 @@ The Chat path goes through the agent, so the gateway only sees the agent. The To
 | `policies/identity-binding.cedar` | A customer may only touch their own orders | M5 |
 | `policies/refund-cap.cedar` | No refunds over $200 | M5 |
 | `policies/refund-after-lookup.dogwood` | Dogwood: no refund unless you looked at that order earlier in the session | M5 |
-| `policies/gateway_temporal_iam.json` | Lets gateway B keep the session history Dogwood needs | M5 |
+| `policies/gateway_temporal_iam.json` | Lets `refund-gw-jwt` keep the session history Dogwood needs | M5 |
 | `chat/lambda_function.py` | The tester: sign-in page, chat, tools tab, and a lookup that finds your resources | All labs |
 | `chat/lambda_policy.json` | Lets the tester read the names of your pool, harness and gateway | Tester setup |
 

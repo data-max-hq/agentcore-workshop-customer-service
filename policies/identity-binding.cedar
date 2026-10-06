@@ -17,7 +17,7 @@ permit (
         AgentCore::Action::"orders___process_refund",
         AgentCore::Action::"orders___get_refund_status"
     ],
-    resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:eu-central-1:925061584404:gateway/refund-gateway-identity-pju6ekwsja"
+    resource == AgentCore::Gateway::"YOUR_REFUND_GW_JWT_ARN"
 )
 when {
     principal.hasTag("username") &&

@@ -17,7 +17,7 @@
 forbid (
     principal is AgentCore::OAuthUser,
     action == AgentCore::Action::"orders___process_refund",
-    resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:eu-central-1:925061584404:gateway/refund-gateway-identity-pju6ekwsja"
+    resource == AgentCore::Gateway::"YOUR_REFUND_GW_JWT_ARN"
 )
 when {
     context.input.amount.greaterThan(decimal("200.0"))

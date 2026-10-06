@@ -30,7 +30,8 @@ def _pick(items, name_key, name, initials):
     is, which is the normal case in a fresh per-attendee account."""
     items = list(items)
     if initials:
-        hit = next((i for i in items if i[name_key].lower() == name), None)
+        same = lambda n: n.lower().replace("_", "-")   # gateways can't have "_", so treat - and _ alike
+        hit = next((i for i in items if same(i[name_key]) == same(name)), None)
         return hit, None if hit else f"no {name} yet"
     if len(items) == 1:
         return items[0], None
@@ -63,7 +64,7 @@ def lookup(initials: str) -> dict:
     # only the JWT gateway: the harness's own gateway is IAM-authorized and useless from the browser
     gateways = (g for g in _pages(ac.list_gateways, "items", "nextToken", "nextToken", maxResults=100)
                 if initials or g.get("authorizerType") == "CUSTOM_JWT")
-    gw, missing["gateway_url"] = _pick(gateways, "name", f"refund_gw_jwt_{initials}", initials)
+    gw, missing["gateway_url"] = _pick(gateways, "name", f"refund-gw-jwt-{initials}", initials)
     if gw:
         found["gateway_url"] = f"https://{gw['gatewayId']}.gateway.bedrock-agentcore.{REGION}.amazonaws.com/mcp"
     return {"found": found, "missing": {k: v for k, v in missing.items() if v}}
@@ -76,7 +77,7 @@ FORWARD = ("authorization", "content-type", "accept", "mcp-protocol-version", "m
 
 
 def mcp_forward(event) -> dict:
-    """Pass one Tools-tab call through to gateway B, with the caller's own token.
+    """Pass one Tools-tab call through to refund-gw-jwt, with the caller's own token.
 
     The browser can't call the gateway directly once Dogwood is in play: temporal
     policies need the x-amzn-bedrock-agentcore-policy-session-id header on every
@@ -209,7 +210,7 @@ HTML = r'''<!doctype html>
         <button class="primary"><i class="fa-solid fa-magnifying-glass"></i> Find my resources</button></div>
     </form>
     <ul id="found" class="found"></ul>
-    <label class="check"><input id="identity" type="checkbox"> Tell the agent who I am <span class="hint">Identity lab, step 12</span></label>
+    <label class="check"><input id="identity" type="checkbox"> Tell the agent who I am <span class="hint">M4, step 16</span></label>
     <details style="margin-top:.8rem"><summary>Enter manually</summary>
     <form id="fCfg">
       <label>User pool ID <span class="hint">Cognito → User pools → your pool. Looks like <code>us-east-1_AbC123xyz</code></span></label>
@@ -288,7 +289,7 @@ HTML = r'''<!doctype html>
 </main>
 
 <script>
-const SESSION_MS = 15 * 60 * 1000;   // workshop rule: sign out 15 min after sign-in
+const SESSION_MS = 15 * 60 * 1000;   // workshop rule: sign out after 15 min without a call
 const DEFAULTS = {
   region: "us-east-1", user_pool_id: "", client_id: "", agent_arn: "", gateway_url: "", system_prompt: "",
 };
@@ -300,7 +301,7 @@ const newId = () => crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().
 
 // tokens live in memory only: a reload signs you out too
 // policySid groups Tools-tab calls into one Dogwood policy session (the history temporal policies see)
-const S = { token: null, username: "", challenge: null, signedInAt: 0, sessionId: newId(), policySid: newId(), mcpSid: null, tools: [] };
+const S = { token: null, username: "", challenge: null, lastActive: 0, sessionId: newId(), policySid: newId(), mcpSid: null, tools: [] };
 
 // ---------------------------------------------------------------- config ---
 function loadCfg() {
@@ -377,7 +378,7 @@ function decodeJwt(t) {
 const actorId = t => { const c = decodeJwt(t); return c.username || c["cognito:username"] || c.email || c.sub; };
 
 function signedIn(result) {
-  S.token = result.AccessToken; S.challenge = null; S.signedInAt = Date.now();
+  S.token = result.AccessToken; S.challenge = null; S.lastActive = Date.now();
   render();
 }
 
@@ -388,13 +389,13 @@ function signOut() {
   render();
 }
 
-// session clock: hard sign-out 15 min after sign-in, or when the token itself expires
+// session clock: sign out 15 min after the last call, or when the token itself expires (it can't be extended)
 setInterval(() => {
   if (!S.token) return;
-  const left = Math.min(S.signedInAt + SESSION_MS, decodeJwt(S.token).exp * 1000) - Date.now();
+  const left = Math.min(S.lastActive + SESSION_MS, decodeJwt(S.token).exp * 1000) - Date.now();
   if (left <= 0) {
     signOut();
-    $("loginErr").innerHTML = note("info", "Your 15-minute session ended. Sign in again.");
+    $("loginErr").innerHTML = note("info", "Signed out after 15 minutes without a call, or your token expired. Sign in again.");
     return;
   }
   $("left").textContent = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
@@ -465,6 +466,7 @@ function* eventStream(buf) {
 }
 
 async function invokeAgent(message) {
+  S.lastActive = Date.now();   // every call restarts the 15 minutes
   const body = { messages: [{ role: "user", content: [{ text: message }] }] };
   const actor = actorId(S.token);
   if (actor) {
@@ -519,7 +521,8 @@ $("fChat").onsubmit = async e => {
   const out = addMsg("assistant", '<span class="muted"><i class="fa-solid fa-spinner fa-spin"></i> Thinking…</span>');
   try {
     const [status, text, raw] = await invokeAgent(prompt);
-    const reply = status === 200 ? text : explainError(status, raw);
+    // Nova writes its reasoning in <thinking> tags; show only the answer (Raw response keeps it)
+    const reply = status === 200 ? text.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim() : explainError(status, raw);
     out.innerHTML = md(reply) + (raw && raw !== reply ? `<details><summary>Raw response</summary><pre>${esc(raw.slice(0, 5000))}</pre></details>` : "");
   } catch (err) {
     out.innerHTML = md(`**Could not reach the agent.** ${err.message}`);
@@ -532,6 +535,7 @@ $("fChat").onsubmit = async e => {
 // Goes through this Lambda's /mcp, which forwards to the gateway: a browser may not send the
 // policy session header that Dogwood (temporal) policies need.
 async function mcpPost(payload, retried) {
+  S.lastActive = Date.now();
   const headers = { Authorization: `Bearer ${S.token}`, "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
     // Without this header the gateway assumes MCP 2025-03-26 and rejects every call with -32022.
@@ -656,6 +660,7 @@ if __name__ == "__main__":  # self-check of paging + picking, no AWS needed
     items = list(_pages(lambda **kw: next(pages), "Items", "Next", "Next"))
     assert _pick(items, "Name", "refund-pool-amg", "amg") == ({"Name": "Refund-Pool-AMG"}, None)
     assert _pick(items, "Name", "refund-pool-xyz", "xyz") == (None, "no refund-pool-xyz yet")
+    assert _pick([{"name": "refund-gw-jwt-amg"}], "name", "refund_gw_jwt_amg", "amg") == ({"name": "refund-gw-jwt-amg"}, None)
     assert _pick(items, "Name", "refund-pool-", "") == (None, "2 found, type your initials to choose")
     assert _pick(items[:1], "Name", "refund-pool-", "") == ({"Name": "a"}, None)
     assert _pick([], "Name", "refund-pool-", "") == (None, "none yet")

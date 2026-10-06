@@ -11,7 +11,7 @@
 // What it needs (LABS.md, M5):
 //  - Created as a Dogwood policy: in the API the statement goes under `policy`,
 //    not `cedar`.
-//  - Gateway B's role allows bedrock-agentcore:GetWorkloadAccessToken
+//  - refund-gw-jwt's role allows bedrock-agentcore:GetWorkloadAccessToken
 //    (policies/gateway_temporal_iam.json).
 //  - Every call carries the x-amzn-bedrock-agentcore-policy-session-id header.
 //    With a temporal policy attached, calls without it fail. The tester sends it.
@@ -23,7 +23,7 @@
 forbid (
     principal is AgentCore::OAuthUser,
     action == AgentCore::Action::"orders___process_refund",
-    resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:eu-central-1:925061584404:gateway/refund-gateway-identity-pju6ekwsja"
+    resource == AgentCore::Gateway::"YOUR_REFUND_GW_JWT_ARN"
 )
 unless temporal {
     formerly within 1h AgentCore::Action::"orders___get_order_transaction"::response{
