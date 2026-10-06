@@ -302,9 +302,9 @@ memory to see short-term memory on its own, then put the managed one back.
 3. Edit your harness and switch its memory to the one you just made. Wait for
    **READY**.
 
-4. In the Chat tab, say: **my favourite colour is green.**
+4. In the Chat tab, say: **for any refund, I want the money back on my original card.**
 
-5. Then ask: **what is my favourite colour?** It remembers. That is short-term
+5. Then ask: **how do I like my refunds paid?** It remembers. That is short-term
    memory: the conversation so far, kept for this chat.
 
 6. Click **New chat** and ask again. It has forgotten. A new chat is a new
@@ -315,13 +315,13 @@ memory to see short-term memory on its own, then put the managed one back.
 7. Edit your harness and switch its memory back to **managed memory**. Wait for
    **READY**, and check the two retrieval configs from step 1 are there again.
 
-8. In the Chat tab, say: **my favourite colour is green.** Ask about it in the same
-   chat. It remembers, as before.
+8. In the Chat tab, say: **for any refund, I want the money back on my original
+   card.** Ask about it in the same chat. It remembers, as before.
 
 9. **Wait a minute or two.** Long-term memories are extracted in the background
    after the conversation, not instantly.
 
-10. Click **New chat** and ask: **what is my favourite colour?** This time it
+10. Click **New chat** and ask: **how do I like my refunds paid?** This time it
     remembers. The fact was saved under `/actors/alice/facts/`, which belongs to
     alice, not to the chat.
 
@@ -329,7 +329,7 @@ memory to see short-term memory on its own, then put the managed one back.
     know. Same agent, same memory resource, different actor.
 
 **You are done when** the plain memory forgets after **New chat**, the managed
-memory remembers after **New chat**, and bob does not see alice's colour.
+memory remembers after **New chat**, and bob does not see alice's preference.
 
 > If step 10 still forgets, wait another minute and ask again. Extraction can take
 > a little while.
