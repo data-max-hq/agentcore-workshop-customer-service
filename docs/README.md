@@ -17,8 +17,8 @@ Everything is in **us-east-1**.
 | M1 Identity | Cognito pool and users, the tester finds them | console | 15 min |
 | M2 The agent | create a harness with JWT login, log in with the tester | console | 15 min |
 | M3 Memory | short-term only with your own memory, then managed long-term memory | console | 15 min |
-| M4 Tools | Lambda, gateway A, attach to the agent | console | 20 min |
-| M5 Policies | gateway B, policy engine, Cedar rules, then a Dogwood rule | console | 35 min |
+| M4 Tools | Lambda, `refund-gw`, attach to the agent | console | 20 min |
+| M5 Policies | `refund-gw-jwt`, policy engine, Cedar rules, then a Dogwood rule | console | 35 min |
 
 Budget about 100 minutes, plus 10 for the tester. If you are short on time, M5 is the one that makes the
 point, so cut M3 before you cut M5.
@@ -32,23 +32,23 @@ So the workshop builds **two doors into one Lambda**:
 ```
 you --login--> Cognito
 
-  Chat tab  --> Harness --> Gateway A (AWS IAM) --> Lambda
-  Tools tab --------------> Gateway B (your token, policies) --> Lambda
+  Chat tab  --> Harness --> refund-gw (AWS IAM) --> Lambda
+  Tools tab --------------> refund-gw-jwt (your token, policies) --> Lambda
 ```
 
 In M4 the agent gets tools and looks secure. It is not: the user's name is just a
 line in a prompt, and the model follows it out of politeness. In M5 the second
 door proves who you are and a policy engine checks every tool call against it.
 
-M4 and M5 are meant to feel different. Do not add a policy engine to gateway A
+M4 and M5 are meant to feel different. Do not add a policy engine to `refund-gw`
 without reading the last section of STAFF.md.
 
 ## Prerequisites
 
 Each attendee needs:
 
-- A browser, and AWS console access to their account in `us-east-1`, with
-  Bedrock access to a Claude model enabled there
+- A browser, and AWS console access to their account in `us-east-1`. The agent
+  uses Amazon Nova Pro, which needs no model setup
 - Nothing installed. No Docker and no database: orders live in the tool Lambda.
 
 ## Get an attendee running

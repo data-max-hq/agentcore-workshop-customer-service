@@ -11,7 +11,7 @@ in which lab.
 
 ```
 tools/      M4 Lambda (4 order/refund tools, hardcoded orders) + gateway tool schema
-policies/   M5 Cedar + Dogwood policies for gateway B, and its temporal IAM
+policies/   M5 Cedar + Dogwood policies for refund-gw-jwt, and its temporal IAM
 chat/       the tester: one pasteable Lambda file (page, /lookup, /mcp) + its IAM
             policy + deploy.sh for staff
 docs/       LABS (attendee steps), STAFF (instructor notes), README, notebook
@@ -19,7 +19,7 @@ docs/       LABS (attendee steps), STAFF (instructor notes), README, notebook
 
 - Identity is Cognito + Cedar/Dogwood. The tester's Chat tab goes through the
   harness (identity is only a system-prompt line there); its Tools tab calls
-  gateway B with the user's own token, so policies see the user.
+  `refund-gw-jwt` with the user's own token, so policies see the user.
 
 ## Working style for this repo
 
