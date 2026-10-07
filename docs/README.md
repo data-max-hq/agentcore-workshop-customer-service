@@ -19,8 +19,9 @@ Everything is in **us-east-1**.
 | M3 Memory | short-term only with your own memory, then managed long-term memory | console | 15 min |
 | M4 Tools | Lambda, `refund-gw`, attach to the agent, then memory vs the order system | console | 30 min |
 | M5 Policies | `refund-gw-jwt`, policy engine, Cedar rules, a Dogwood rule, then the same rules on `refund-gw` | console | 45 min |
+| M6 Observability | follow one request through its trace and logs | console | 10 min |
 
-Budget about 120 minutes, plus 10 for the tester. If you are short on time, M5 is the one that makes the
+Budget about 130 minutes, plus 10 for the tester. If you are short on time, M5 is the one that makes the
 point, so cut M3 before you cut M5.
 
 ## The idea the workshop is built around

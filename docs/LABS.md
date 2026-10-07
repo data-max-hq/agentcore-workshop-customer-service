@@ -26,6 +26,13 @@ match, stop there and fix it before you go on.
    | `refund-gw` ARN | M4 step 13 | M4, end of M5 |
    | `refund-gw-jwt` ARN | M5 step 5 | M5 policies |
 
+4. **Switch on tracing now.** Go to **CloudWatch** → **Settings** → **X-Ray traces**
+   → **Transaction Search**, and enable it with the default settings. It is once per
+   account.
+
+   > This is for M6, at the very end, but it has to happen now: only requests made
+   > after it is on are recorded. Switch it on at the end and M6 has nothing to show.
+
 ### Your progress
 
 - [ ] The tester app
@@ -34,6 +41,7 @@ match, stop there and fix it before you go on.
 - [ ] M3. Memory
 - [ ] M4. Tools
 - [ ] M5. Policies
+- [ ] M6. Observability
 
 ## What you are building
 
@@ -838,6 +846,48 @@ a prompt. The model usually follows it, but nothing makes it.
 That is the difference between telling software who you are and proving it.
 
 Cedar checks who you are on every call. Dogwood also checks what you did before it.
+
+---
+
+# M6. Observability: where to look
+
+**Goal:** know where to look when the agent misbehaves. There is nothing to build
+here: you open a few pages and learn what each one tells you.
+
+> The traces below exist because you switched on **Transaction Search** in *Before
+> you start*, step 4. If the trace pages stay empty, ask a staff member.
+
+### Follow one request
+
+1. Logged in as **alice**, send in the Chat tab: **what's the status of order
+   A-1001?** Then open **Raw response** under the reply.
+
+   This is the quickest look you have. Every `toolUse` block is a tool call, with the
+   arguments the agent sent. No `toolUse` at all means the agent answered without
+   asking the order system: from memory, or made up.
+
+2. Go to **CloudWatch** → **GenAI Observability** → **Bedrock AgentCore**. Open your
+   harness `refund_<your initials>`, then its **Sessions**, and open the newest one.
+
+   **Check:** you see your request as a **trace**: a list of steps, each with how long
+   it took.
+
+3. Open the trace and find these steps:
+   - the **model calls**: the agent thinking. Each one shows the tokens it used, and
+     tokens are what you pay for.
+   - the **tool call** `orders___get_order_transaction`, with the `customer_id` and
+     `order_id` the agent sent.
+   - the **memory** steps: the agent reading what it remembers about alice.
+
+   **Check:** you can say which step took the longest.
+
+4. Go to **Lambda** → `refund_tool_<your initials>` → **Monitor**. The graphs show how
+   often the tools ran (**Invocations**), how long they took (**Duration**) and how
+   often they failed (**Errors**). **View CloudWatch logs** shows one line per tool
+   call, as in M4.
+
+**Done** when you have followed one request from the chat, to its trace, to the
+Lambda log line. Tick *M6* in your progress list.
 
 ---
 

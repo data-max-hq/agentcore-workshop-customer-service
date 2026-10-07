@@ -57,7 +57,13 @@ the bottom of this file.
    paste the file into the Lambda console. It is one file with no dependencies, so
    pasting works fine and teaches more.
 4. Tell everyone the naming rule: suffix every resource with your initials.
-5. Run through the tester setup and M1 to M5 yourself once, in an account set up
+5. Make sure attendees do *Before you start* step 4, **CloudWatch Transaction
+   Search**, before anything else. It is one-time per account, and traces only
+   appear for requests made after it is on: an attendee who skips it reaches M6
+   with nothing to see. You can also switch it on for them the day before
+   (**CloudWatch** → **Settings** → **X-Ray traces** → **Transaction Search**).
+   Check the attendee role is allowed to change it.
+6. Run through the tester setup and M1 to M6 yourself once, in an account set up
    like the attendees' (not the reference account). It takes about an hour.
 
 ## Reference setup
@@ -117,6 +123,8 @@ first login, so the password-change screen can be demonstrated.
 | M5 tests fail on M-3001 | M4 step 25 was skipped, so it is still `cancelled` | set it back to `delivered` and **Deploy** |
 | An attendee's own user sees no orders | they added themselves in M1 but no orders in the Lambda, or `customer_id` in their orders does not match the Cognito user name exactly (case, spelling) | compare the token panel's `username` with the `customer_id` in their `ORDERS` entries, fix, **Deploy** the Lambda |
 | Lambda `Runtime.UserCodeSyntaxError` after adding their own orders | a missing comma or brace in the new `ORDERS` entry | each entry ends with `},`; compare with the example in LABS M4 step 3 |
+| M6: the GenAI Observability pages show no harness, or no sessions | Transaction Search is not on in this account, or was switched on after the requests were made, or the region is not `us-east-1` | switch it on (LABS, *Before you start* step 4), send a new chat message, and wait a few minutes. Older requests will not appear |
+| M6: the trace shows no tool call for the order question | the agent answered from memory or made it up | that is a finding, not a fault: it is what M6 step 1 tells them to look for |
 | Agent asks "what is your customer id?" | **Tell the agent who I am** is not ticked | tick it in the tester's Settings |
 | Tester: a resource stays unticked | it has not been created yet, or (shared account) the name does not follow the lab's naming (`refund_<initials>`, `refund-gw-jwt` `refund-gw-jwt-<initials>`) | create it, or fill that field under Settings → Enter manually |
 | Tools tab: every call fails with a validation error about a missing session | a Dogwood policy is attached and the call has no `x-amzn-bedrock-agentcore-policy-session-id` | use the tester's Tools tab, which sends it. Their own clients must send it too |
