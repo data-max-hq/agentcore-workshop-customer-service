@@ -729,6 +729,8 @@ here: you open a few pages and learn what each one tells you.
 **Done** when you have followed one request from the chat, to its trace, to the
 Lambda log line. Tick *M6* in your progress list.
 
+## Congratulations 🎉 You are a Legend!
+
 ## If something breaks
 
 Ask a staff member. Most problems are listed in [STAFF.md](STAFF.md). The tester shows a
