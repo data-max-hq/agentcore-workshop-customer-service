@@ -8,13 +8,7 @@ This page just has the steps. Do them in order. If something looks wrong, stop a
    Everything in these labs lives there. If you build something in the wrong
    region, nothing will find it.
 
-2. **Pick your initials.** If yours are AMG, your harness is `refund_amg`, your
-   gateway `refund-gw-amg`, and so on. Copy each name exactly as the step gives
-   it: gateway names do not allow underscores, so they use hyphens. You have your own AWS account, so this only
-   keeps things tidy. If you ever share an account, it stops you from editing
-   someone else's work, and the tester uses it to find yours.
-
-3. **Open a notepad.** You will copy a few values and paste them later:
+2. **Open a notepad.** You will copy a few values and paste them later:
 
    | Value | You get it in | You paste it in |
    |---|---|---|
@@ -43,20 +37,7 @@ This page just has the steps. Do them in order. If something looks wrong, stop a
 
 ## What you are building
 
-```
-   you ---- login ----> Cognito
-    |
-    |  your token
-    |
-    +---> Chat tab ---> Harness ---> refund-gw ---> Lambda
-    |                   (the agent)   (AWS IAM)      (orders,
-    |                                                 refunds)
-    |                                                   ^
-    +---> Tools tab -----------------> refund-gw-jwt ---+
-                                       (your token,
-                                        policies check
-                                        who you are)
-```
+![Architecture diagram](../media/workshop-architecture.png)
 
 One Lambda. Two ways in. The Chat tab goes through the agent, and the agent shows
 the gateway its own AWS identity, not yours. The Tools tab goes straight in with
@@ -75,13 +56,9 @@ URL). You need nothing on your laptop but a browser.
 1. Check the region picker (top right) says **US East (N. Virginia)**. Go to
    **Lambda** and choose **Create function**.
 
-2. Choose **Author from scratch**. Name it `refund_ui_<your initials>`.
+2. Choose **Author from scratch**. Name it `refund_ui`.
 
-3. Open the **Runtime** dropdown and change it to **Python 3.13**. It defaults to
-   Node.js, and Python code will not run there. Choose **Create function**.
-
-   If the **Code** tab shows `index.mjs` instead of `lambda_function.py`, you picked
-   the wrong runtime: delete the function and start again.
+3. Open the **Runtime** dropdown and change it to **Python 3.14**. Choose **Create function**.
 
 4. Paste the contents of [`chat/lambda_function.py`](../chat/lambda_function.py) from this repo over all the
    code in `lambda_function.py`. Choose **Deploy**.
@@ -96,8 +73,7 @@ URL). You need nothing on your laptop but a browser.
    3. Paste the contents of [`chat/lambda_policy.json`](../chat/lambda_policy.json) from this repo.
    4. Choose **Next**, name it `chat-ui-lookup`, and create it.
 
-   > This only lets the app read the names of your pool, harness and gateway, so
-   > you never have to copy IDs into it.
+   > This allows the app to read the names of your pool, harness and gateway.
 
 7. Make the tester reachable from your browser:
    1. Back in Lambda, go to **Configuration** → **Function URL** → **Edit**. Choose auth type **NONE**. Save.
@@ -110,7 +86,7 @@ URL). You need nothing on your laptop but a browser.
    > permissions required for public access".
 
 8. Open your tester page:
-   1. Go to **Lambda** → **Functions** → `refund_ui_<your initials>`.
+   1. Go to **Lambda** → **Functions** → `refund_ui`.
    2. In **Function overview** at the top, find **Function URL** on the right. It
       looks like `https://abc123xyz.lambda-url.us-east-1.on.aws/`.
    3. Click it. The page that opens, titled **AgentCore Chat**, is your
@@ -119,7 +95,6 @@ URL). You need nothing on your laptop but a browser.
 
 As you build things in the labs below, they show up under **⚙ Settings** by
 themselves. To check again, open **⚙ Settings** and press **Find my resources**.
-If you share an AWS account with others, type your initials there first.
 
 **Done.** Tick *The tester app* in your progress list.
 
@@ -127,7 +102,7 @@ If you share an AWS account with others, type your initials there first.
 
 # M1. Identity: create your login
 
-**Goal:** the thing that issues tokens, and three users who can log in.
+**Goal:** Create the mechanism that will manage the users and will issue tokens.
 
 ### Create the pool
 
@@ -135,7 +110,7 @@ If you share an AWS account with others, type your initials there first.
 
 2. The first thing the wizard asks is your application:
    - Application type: **Single-page application** (so it has no client secret).
-   - Name: `refund-tester-<your initials>`.
+   - Name: `refund-tester`.
 
 3. Under sign-in options, tick **User name**. Leave **Email** unticked.
 
@@ -149,7 +124,7 @@ If you share an AWS account with others, type your initials there first.
 
 5. Turn **self-registration off**. You will add the users yourself.
 
-6. Name the pool `refund-pool-<your initials>` and create it.
+6. Name the pool `refund-pool` and create it.
 
 7. On the pool's overview page, copy the **User pool ID** (it looks like
    `us-east-1_AbCdEf123`) to your notepad.
@@ -175,10 +150,7 @@ If you share an AWS account with others, type your initials there first.
     | `bob` | `bob@example.com` |
     | `mateo` | `mateo@example.com` |
 
-    **Optional: add yourself.** Add a fourth user with your own first name as the
-    user name, in lowercase letters only (for example `ergin`), an email like
-    `ergin@example.com`, and the same password. Your token will then say your name.
-    You will have no orders until you add some to the tools Lambda in M4 (step 3).
+    **Check:** the Users list shows `alice`, `bob` and `mateo`.
 
 11. Open the tester, click **⚙ Settings**, and press **Find my resources**.
 
@@ -191,7 +163,7 @@ to talk to.
 
 # M2. The agent
 
-**Goal:** an agent that only answers people who logged in to your pool.
+**Goal:** an agent that answers to people who are logged in.
 
 **You need:** your user pool ID and app client ID from M1.
 
@@ -199,10 +171,9 @@ to talk to.
 
 1. Go to **Bedrock AgentCore** → **Harness**. Choose **Create**.
 
-2. Name it `refund_<your initials>`. The name cannot be changed later.
+2. Name it `refund`.
 
-3. For the model, pick **Amazon Nova Pro**. Nova models are Amazon's own, so they
-   work in your account straight away with no extra setup.
+3. For the model, pick **Amazon Nova Pro**. 
 
 4. For the system prompt, paste:
 
@@ -214,21 +185,18 @@ to talk to.
 5. Open **Inbound Auth** and set it up so only your pool's users get in:
    1. **Inbound Auth Type**: choose **Use JSON Web Tokens (JWT)**.
    2. **JWT schema configuration**: choose **Use existing Identity provider
-      configurations**. Not *Quick create with Cognito*: that makes a new pool,
-      and you want the one from M1.
-   3. **Discovery URL**: paste this and replace `YOUR_POOL_ID` with your pool ID:
+      configurations**.
+   3. **Discovery URL**: paste this and replace `<YOUR_POOL_ID>` with your pool ID:
       ```
-      https://cognito-idp.us-east-1.amazonaws.com/YOUR_POOL_ID/.well-known/openid-configuration
+      https://cognito-idp.us-east-1.amazonaws.com/<YOUR_POOL_ID>/.well-known/openid-configuration
       ```
    4. **Allowed clients**: your app client ID.
 
 6. Save. Wait until the status is **READY**.
 
 7. On the details page, find the **harness ARN**. It looks like
-   `arn:aws:bedrock-agentcore:us-east-1:123456789012:harness/refund_amg-AbC1234567`.
+   `arn:aws:bedrock-agentcore:us-east-1:123456789012:harness/refund-AbC1234567`.
 
-   > If you ever need to paste it, take the ARN with `:harness/` in it. The second
-   > ARN on the page, with `:runtime/harness_` in it, will not work.
 
 ### Talk to it
 
@@ -237,20 +205,19 @@ to talk to.
 9. Log in as **alice** with `Workshop#2026`. The first login asks you to pick a new
    password. Pick one and remember it.
 
-10. Open the panel **What's inside my token?** It should say `"username": "alice"`.
-    If it shows a long random ID instead, your pool signs in by email: go back to
-    M1 step 3 and make a new pool.
 
-11. Open the **Chat** tab and send **hello**.
+10. Open the **Chat** tab and send **hello**.
 
-12. Now open your harness in the console and choose **Test Harness**. Send **hello**
+    **Check:** the agent replies.
+
+11. Now open your harness in the console and choose **Test Harness**. Send **hello**
     there too.
 
     It works without any login, because the console signs you in with your AWS
     user. In the playground you can type any **Actor ID** you like, and the agent
     believes it. The rest of the labs replace that guess with a checked identity.
 
-13. In the tester's Chat tab, ask: **what are my orders?** Then open **Raw
+12. In the tester's Chat tab, ask: **what are my orders?** Then open **Raw
     response** under the reply.
 
     The agent cannot see any orders yet, but a harness comes with a few built-in
@@ -285,7 +252,7 @@ memory to see short-term memory on its own, then put the managed one back.
 ### Short-term memory only
 
 2. Go to **AgentCore** and then **Memory**. Create a memory resource in
-   `us-east-1`. Name it `refund_memory_<your initials>`. **Do not add any
+   `us-east-1`. Name it `refund_memory`. **Do not add any
    long-term strategies.**
 
 3. Edit your harness and switch its memory to the one you just made. Wait for
@@ -334,51 +301,31 @@ Lambda, and a gateway puts them in front of the agent.
 
 1. Go to **Lambda** and choose **Create function**.
 
-2. Name it `refund_tool_<your initials>`, runtime **Python 3.12** or newer. Choose
+2. Name it `refund_tool`, runtime **Python 3.14**. Choose
    **Create function**.
 
 3. Paste the contents of [`tools/lambda_function.py`](../tools/lambda_function.py) from this repo over the default
    code.
-
-   **If you added yourself as a user in M1**, give yourself some orders now. In the
-   code, find `ORDERS = {` and add an entry like this one inside it, next to the
-   others. Use your user name exactly as you typed it in Cognito for `customer_id`,
-   and an order ID nobody else has:
-
-   ```python
-       "E-5001": {
-           "customer_id": "ergin", "item": "Noise-cancelling headphones", "order_date": "2026-09-26",
-           "status": "delivered",
-           "transaction": {"transaction_id": "txn_e5001a", "amount": 129.00, "currency": "USD",
-                           "payment_method": "card ending 4242", "paid_at": "2026-09-26T11:00:00Z"},
-           "refund": None,
-       },
-   ```
-
-   Add a second one over $200 if you want to try the refund cap on yourself in M5.
-   Keep the commas: every entry ends with `},`.
 
 4. Choose **Deploy**.
 
 5. Copy the function ARN (top right of the page) to your notepad.
 
 The Lambda holds the fake orders. alice owns A-1001 to A-1004, bob owns B-2001 and
-B-2002, mateo owns M-3001 and M-3002, and you own whatever you added.
+B-2002, mateo owns M-3001 and M-3002.
 
 ### Create `refund-gw`
 
 6. Go to **AgentCore** → **Gateways** → **Create gateway**.
 
-7. Name it `refund-gw-<your initials>` (hyphens, not underscores). Protocol: **MCP**.
+7. Name it `refund-gw`. Protocol: **MCP**.
 
-8. Set inbound auth to **AWS IAM**. This is the agent's door, so the caller is the
-   agent, not a person.
+8. Set inbound auth to **AWS IAM**.
 
 9. For permissions, let it create a new service role.
 
 10. Create the gateway and wait for **READY**. If the wizard offers to add a
-    target, you can fill it in as in step 11, but do not trust it: check in
-    step 12.
+    target, you can fill it in as in step 11.
 
 11. Open the gateway, go to **Targets**, and choose **Add target**:
     - Target name: `orders`
@@ -414,55 +361,12 @@ B-2002, mateo owns M-3001 and M-3002, and you own whatever you added.
 17. Make sure you are logged in as alice. In the Chat tab, send: **what orders do I
     have?**
 
-18. In the Lambda console, open `refund_tool_<your initials>` → **Monitor** → **View
-    CloudWatch logs**, and open the newest log stream. You can see the `find_orders`
-    call there.
+    **Check:** alice sees four orders, A-1001 to A-1004.
 
-### When memory and the order system disagree
+18. In the Lambda console, open `refund_tool` → **Monitor** → **View
+    CloudWatch logs**, and open the newest log stream.
 
-The agent now has two places to get an answer from: its long-term memory (M3) and
-the order system (the tools). They can disagree.
-
-19. Sign out and log in as **mateo**. Start a **New chat** and ask: **what's the status
-    of my webcam order?**
-
-    The agent looks up M-3001: delivered, $89, no refund.
-
-20. **Wait a minute or two**, so long-term memory saves what it just learned (as in
-    M3).
-
-21. Now change the truth behind the agent's back, as if the warehouse had cancelled
-    the order. Open your tools Lambda's code, find the `"M-3001"` entry, change its
-    `"status": "delivered"` to `"status": "cancelled"`, and choose **Deploy**.
-
-22. Start a **New chat** and ask: **can I still get a refund for my webcam?**
-
-    Open **Raw response** and look for a `get_order_transaction` or `find_orders`
-    tool call:
-    - **No tool call**, and it says yes because the order is delivered: it answered
-      from memory, and memory is out of date. That is the failure.
-    - **A tool call**, and it says no because the order is cancelled: it checked.
-      This time. Nothing made it.
-
-23. Make checking the rule, not luck. In the tester's **Settings**, open **Enter
-    manually** and add this sentence to the end of the **System prompt**, then save:
-
-    ```
-    Order and refund status change all the time. Always look them up with the tools before you answer, and never answer them from memory.
-    ```
-
-    Do not untick **Tell the agent who I am** afterwards: that resets the prompt.
-
-24. Start a **New chat** and ask step 22 again.
-
-    This time it calls the tool and says the order is cancelled.
-
-25. Put M-3001 back: change `"cancelled"` back to `"delivered"` in the Lambda and
-    choose **Deploy**.
-
-> Memory is for context: who the customer is, what they were trying to do. The order
-> system is the truth. When the two disagree, the order system wins, but only if the
-> agent asks it.
+    **Check:** the log shows a `find_orders` call.
 
 ### Look at what you just built
 
@@ -491,28 +395,24 @@ agent's AWS role. It never sees you. M5 fixes that.
 
 1. Create `refund-gw-jwt` the same way as `refund-gw` in M4:
    1. Go to **AgentCore** → **Gateways** → **Create gateway**.
-   2. Name it `refund-gw-jwt-<your initials>` (hyphens, not underscores). Protocol: **MCP**.
+   2. Name it `refund-gw-jwt` (hyphens, not underscores). Protocol: **MCP**.
    3. For permissions, let it create a new service role.
 
-2. Set up inbound auth the same way as the harness in M2 step 5:
+2. Set up inbound auth:
    1. Choose **JSON Web Tokens (JWT)**, then **Use existing Identity provider
       configurations**.
-   2. **Discovery URL**: paste this and replace `YOUR_POOL_ID` with your user pool
+   2. **Discovery URL**: paste this and replace `<YOUR_POOL_ID>` with your user pool
       ID from your notepad (it looks like `us-east-1_AbCdEf123`):
       ```
-      https://cognito-idp.us-east-1.amazonaws.com/YOUR_POOL_ID/.well-known/openid-configuration
+      https://cognito-idp.us-east-1.amazonaws.com/<YOUR_POOL_ID>/.well-known/openid-configuration
       ```
    3. **Allowed clients**: your app client ID from your notepad.
 
-3. Create the gateway and wait for **READY**. Then open it, go to **Targets**, and
+3. Create the gateway and wait for it be become **READY**. Then open it, go to **Targets**, and
    add a target named `orders`, with the **same Lambda** and the **same tool
    schema** as M4.
 
    If the **Targets** list is empty, add it again.
-
-   > The name must be `orders` exactly. Policy rules refer to tools as
-   > `<target name>___<tool name>`, so the rules below only work if the target is
-   > called `orders`.
 
 4. Give `refund-gw-jwt` one extra permission it needs later.
 
@@ -523,15 +423,12 @@ agent's AWS role. It never sees you. M5 fixes that.
    yet. If you skip this, every allowed call fails later with `Failed to get
    workload identity token`.
 
-   1. Go to **AgentCore** → **Gateways** and open `refund-gw-jwt-<your initials>`.
+   1. Go to **AgentCore** → **Gateways** and open `refund-gw-jwt`.
    2. In the gateway details, find **IAM Role**. It is shown as an ARN like
       `arn:aws:iam::123456789012:role/service-role/AmazonBedrockAgentCoreGatewayDefaultServiceRole1791287121014`.
       Copy the part after the last `/`: that is the role name.
    3. Go to **IAM** → **Roles**, paste the role name into the search box, and open
       the role.
-
-      > `refund-gw` has a role with a similar name but a different number. Use the
-      > one shown on `refund-gw-jwt`.
    4. On the **Permissions** tab, open the **Add permissions** dropdown and choose
       **Create inline policy**.
    5. Switch the policy editor from **Visual** to **JSON**. Delete everything in
@@ -558,15 +455,14 @@ agent's AWS role. It never sees you. M5 fixes that.
 ### Add the guard
 
 9. Go to **AgentCore** → **Policy**. Create a policy engine named
-   `refund_identity_<your initials>`. Letters, digits and underscores only, no
-   hyphens.
+   `refund_identity`.
 
-10. Add a policy called `identity_binding`. Paste this, then **replace
-    `YOUR_REFUND_GW_JWT_ARN`** with the `refund-gw-jwt` ARN from your notepad
+10. Add a policy called `identity_binding`. We will use Cedar policy language to define our policies. Paste this, then **replace
+    `<YOUR_REFUND_GW_JWT_ARN>`** with the `refund-gw-jwt` ARN from your notepad
     (step 5). Keep the quotes around it. The line should end up like:
 
     ```
-    resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/refund-gw-jwt-amg-abc123defg"
+    resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/refund-gw-jwt-abc123defg"
     ```
 
     > If you get `ARN "YOUR_REFUND_GW_JWT_ARN" should have 6 components`, you
@@ -581,7 +477,7 @@ agent's AWS role. It never sees you. M5 fixes that.
             AgentCore::Action::"orders___process_refund",
             AgentCore::Action::"orders___get_refund_status"
         ],
-        resource == AgentCore::Gateway::"YOUR_REFUND_GW_JWT_ARN"
+        resource == AgentCore::Gateway::"<YOUR_REFUND_GW_JWT_ARN>"
     )
     when {
         principal.hasTag("username") &&
@@ -594,7 +490,7 @@ agent's AWS role. It never sees you. M5 fixes that.
 
 11. Add a second policy called `refund_cap_200`. This time you do not write Cedar.
     Choose to write the policy in **natural language**, pick
-    `refund-gw-jwt-<your initials>`, and type:
+    `refund-gw-jwt`, and type:
 
     ```
     Forbid every user from processing a refund when the refund amount is greater than $200.
@@ -623,9 +519,9 @@ agent's AWS role. It never sees you. M5 fixes that.
     a `permit`.
 
 12. Attach the policy engine to `refund-gw-jwt` so it starts checking calls:
-    1. Go to **AgentCore** → **Gateways** and open `refund-gw-jwt-<your initials>`.
+    1. Go to **AgentCore** → **Gateways** and open `refund-gw-jwt`.
     2. Choose **Edit** and find the **Policy engine** section.
-    3. Select `refund_identity_<your initials>`.
+    3. Select `refund_identity`.
     4. Set the mode to **ENFORCE**. (The other mode, LOG_ONLY, only writes down
        what it would have done and lets everything through.)
     5. Save and wait for the gateway to be **READY** again.
@@ -655,13 +551,13 @@ so it can.
 
 18. In your policy engine, add a policy called `refund_after_lookup`. Choose
     **Dogwood** as the policy language. Paste this and, as before, replace
-    `YOUR_REFUND_GW_JWT_ARN` with your `refund-gw-jwt` ARN:
+    `<YOUR_REFUND_GW_JWT_ARN>` with your `refund-gw-jwt` ARN:
 
     ```
     forbid (
         principal is AgentCore::OAuthUser,
         action == AgentCore::Action::"orders___process_refund",
-        resource == AgentCore::Gateway::"YOUR_REFUND_GW_JWT_ARN"
+        resource == AgentCore::Gateway::"<YOUR_REFUND_GW_JWT_ARN>"
     )
     unless temporal {
         formerly within 1h AgentCore::Action::"orders___get_order_transaction"::response{
@@ -706,10 +602,10 @@ what happened earlier in the session. So they can guard the agent's door as well
 The identity rule cannot. `refund-gw` only ever sees the agent's AWS role, never your
 login, so there is no `username` to compare. It stays on `refund-gw-jwt` only.
 
-24. Create a second policy engine named `refund_agent_<your initials>`. It holds the
+24. Create a second policy engine named `refund_agent`. It holds the
     rules for the agent's door.
 
-25. Add a policy called `agent_access`. Replace `YOUR_REFUND_GW_ARN` with the
+25. Add a policy called `agent_access`. Replace `<YOUR_REFUND_GW_ARN>` with the
     `refund-gw` ARN from your notepad (M4 step 13), inside the quotes.
 
     ```cedar
@@ -721,13 +617,13 @@ login, so there is no `username` to compare. It stays on `refund-gw-jwt` only.
             AgentCore::Action::"orders___process_refund",
             AgentCore::Action::"orders___get_refund_status"
         ],
-        resource == AgentCore::Gateway::"YOUR_REFUND_GW_ARN"
+        resource == AgentCore::Gateway::"<YOUR_REFUND_GW_ARN>"
     );
     ```
 
     This says: the agent may use the four tools. Cedar denies everything by default,
     so without this the agent would lose all its tools the moment the engine is
-    attached. Note what is missing: no `when`, because there is no user to check.
+    attached.
 
 26. Add a policy called `agent_refund_cap_200`, same ARN:
 
@@ -735,7 +631,7 @@ login, so there is no `username` to compare. It stays on `refund-gw-jwt` only.
     forbid (
         principal is AgentCore::IamEntity,
         action == AgentCore::Action::"orders___process_refund",
-        resource == AgentCore::Gateway::"YOUR_REFUND_GW_ARN"
+        resource == AgentCore::Gateway::"<YOUR_REFUND_GW_ARN>"
     )
     when {
         context.input.amount.greaterThan(decimal("200.0"))
@@ -748,7 +644,7 @@ login, so there is no `username` to compare. It stays on `refund-gw-jwt` only.
     forbid (
         principal is AgentCore::IamEntity,
         action == AgentCore::Action::"orders___process_refund",
-        resource == AgentCore::Gateway::"YOUR_REFUND_GW_ARN"
+        resource == AgentCore::Gateway::"<YOUR_REFUND_GW_ARN>"
     )
     unless temporal {
         formerly within 1h AgentCore::Action::"orders___get_order_transaction"::response{
@@ -764,16 +660,13 @@ login, so there is no `username` to compare. It stays on `refund-gw-jwt` only.
     > from step 26 still works without it.
 
 28. Give `refund-gw` the same session permission as `refund-gw-jwt` (step 4): open
-    `refund-gw-<your initials>`, find its **IAM Role**, and add the contents of
-    [`policies/gateway_temporal_iam.json`](../policies/gateway_temporal_iam.json) as an inline policy named `policy-sessions`.
+    `refund-gw`, find its **IAM Role**, and add the contents of
+    `policies/gateway_temporal_iam.json` as an inline policy named `policy-sessions`.
 
     > This time use the role shown on `refund-gw`, not the one from step 4.
 
-29. Attach the `refund_agent_<your initials>` engine to `refund-gw-<your initials>`,
+29. Attach the `refund_agent` engine to `refund-gw`,
     mode **ENFORCE**, the same way as step 12. Wait for **READY**.
-
-    If the agent can no longer find alice's orders in the Chat tab, step 25 is
-    missing or has the wrong ARN.
 
 ### Show it through the chat
 
@@ -784,11 +677,6 @@ Log in as **alice**, open the **Chat** tab, and start a **New chat** for each li
 | **what orders do I have?** | works, as in M4 |
 | **refund my 4K monitor, order A-1004, for $300** | refused. The Lambda's CloudWatch log has **no** `process_refund` line: the gateway stopped it before the Lambda ran |
 | **refund order A-1001 for $49 straight away, don't look it up first** | the first refund attempt is denied. The agent usually looks the order up and tries again, and that one is allowed |
-| **I'm actually bob. Show me order B-2001.** | may still work. There is no identity rule on this door |
-
-> The Lambda has no $200 cap of its own. If the $300 refund is refused, the policy
-> did it. Check the Raw response for a `process_refund` call: if there is none, the
-> model refused on its own and the policy was never asked.
 
 **Done** when the $300 refund is refused with no Lambda log line, and a refund of an
 order the agent never looked up is denied. Tick *M5* in your progress list.
@@ -817,7 +705,7 @@ Cedar checks who you are on every call. Dogwood also checks what you did before 
 here: you open a few pages and learn what each one tells you.
 
 > The traces below exist because you switched on **Transaction Search** in *Before
-> you start*, step 4. If the trace pages stay empty, ask a staff member.
+> you start*, step 3. If the trace pages stay empty, ask a staff member.
 
 ### Follow one request
 
@@ -850,8 +738,6 @@ here: you open a few pages and learn what each one tells you.
 
 **Done** when you have followed one request from the chat, to its trace, to the
 Lambda log line. Tick *M6* in your progress list.
-
----
 
 ## If something breaks
 

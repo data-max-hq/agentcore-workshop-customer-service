@@ -1,9 +1,8 @@
 # The workshop chat UI, in one file so it can be pasted into the Lambda console.
 # Serves the page (HTML at the bottom), plus GET /lookup which finds this account's Cognito pool,
 # app client, harness and JWT gateway, so nobody has to copy IDs around, and POST /mcp which
-# forwards the Tools tab's calls to that gateway (see mcp_forward for why). In a shared account,
-# ?initials=amg picks the ones named by the workshop convention. The page then talks to
-# Cognito / AgentCore straight from the browser.
+# forwards the Tools tab's calls to that gateway (see mcp_forward for why). Each one is found by
+# the name the labs give it. The page then talks to Cognito / AgentCore straight from the browser.
 import base64
 import json
 import os
@@ -25,46 +24,39 @@ def _pages(call, key, token_in, token_out, **kw):
         kw[token_in] = page[token_out]
 
 
-def _pick(items, name_key, name, initials):
-    """(item, why-not). With initials: the item named by the convention. Without: the only one there
-    is, which is the normal case in a fresh per-attendee account."""
-    items = list(items)
-    if initials:
-        same = lambda n: n.lower().replace("_", "-")   # gateways can't have "_", so treat - and _ alike
-        hit = next((i for i in items if same(i[name_key]) == same(name)), None)
-        return hit, None if hit else f"no {name} yet"
-    if len(items) == 1:
-        return items[0], None
-    return None, "none yet" if not items else f"{len(items)} found, type your initials to choose"
+def _pick(items, name_key, name):
+    """(item, why-not): the item with the name the labs give it."""
+    same = lambda n: n.lower().replace("_", "-")   # gateways can't have "_", so treat - and _ alike
+    hit = next((i for i in items if same(i[name_key]) == same(name)), None)
+    return hit, None if hit else f"no {name} yet"
 
 
-def lookup(initials: str) -> dict:
+def lookup() -> dict:
     """Each value is found or missing independently, so the page can say which lab is still to do."""
     idp = boto3.client("cognito-idp")
     ac = boto3.client("bedrock-agentcore-control")
     found, missing = {"region": REGION}, {}
 
     pool, missing["user_pool_id"] = _pick(_pages(idp.list_user_pools, "UserPools", "NextToken", "NextToken",
-                                                 MaxResults=60), "Name", f"refund-pool-{initials}", initials)
+                                                 MaxResults=60), "Name", "refund-pool")
     if pool:
         found["user_pool_id"] = pool["Id"]
         client, missing["client_id"] = _pick(_pages(idp.list_user_pool_clients, "UserPoolClients", "NextToken",
                                                     "NextToken", UserPoolId=pool["Id"], MaxResults=60),
-                                             "ClientName", f"refund-tester-{initials}", initials)
+                                             "ClientName", "refund-tester")
         if client:
             found["client_id"] = client["ClientId"]
     else:
         missing["client_id"] = "needs the user pool first"
 
     harness, missing["agent_arn"] = _pick(_pages(ac.list_harnesses, "harnesses", "nextToken", "nextToken",
-                                                 maxResults=100), "harnessName", f"refund_{initials}", initials)
+                                                 maxResults=100), "harnessName", "refund")
     if harness:
         found["agent_arn"] = harness["arn"]
 
-    # only the JWT gateway: the harness's own gateway is IAM-authorized and useless from the browser
-    gateways = (g for g in _pages(ac.list_gateways, "items", "nextToken", "nextToken", maxResults=100)
-                if initials or g.get("authorizerType") == "CUSTOM_JWT")
-    gw, missing["gateway_url"] = _pick(gateways, "name", f"refund-gw-jwt-{initials}", initials)
+    # only the JWT gateway: the harness's own gateway (refund-gw) is IAM-authorized and useless from the browser
+    gw, missing["gateway_url"] = _pick(_pages(ac.list_gateways, "items", "nextToken", "nextToken", maxResults=100),
+                                       "name", "refund-gw-jwt")
     if gw:
         found["gateway_url"] = f"https://{gw['gatewayId']}.gateway.bedrock-agentcore.{REGION}.amazonaws.com/mcp"
     return {"found": found, "missing": {k: v for k, v in missing.items() if v}}
@@ -110,11 +102,8 @@ def _json(status, body):
 
 def lambda_handler(event, context):
     if event.get("rawPath") == "/lookup":
-        initials = (event.get("queryStringParameters") or {}).get("initials", "").strip().lower()
-        if initials and not re.fullmatch(r"[a-z0-9]{1,10}", initials):
-            return _json(400, {"error": "Initials should be letters and numbers only, like amg."})
         try:
-            return _json(200, lookup(initials))
+            return _json(200, lookup())
         except Exception as e:  # surface AWS errors (e.g. missing permission) to the page
             return _json(500, {"error": f"{type(e).__name__}: {e}"})
     if event.get("rawPath") == "/mcp":
@@ -205,9 +194,7 @@ HTML = r'''<!doctype html>
   <details id="cfgBox" class="card">
     <summary><i class="fa-solid fa-gear"></i> Settings</summary>
     <form id="fFind">
-      <label>Your initials <span class="hint">Only needed if you share an AWS account. The ones in your resource names, e.g. <code>amg</code> for <code>refund_amg</code></span></label>
-      <div class="bar"><input id="initials" placeholder="amg" maxlength="10" autocapitalize="off" spellcheck="false" style="flex:1">
-        <button class="primary"><i class="fa-solid fa-magnifying-glass"></i> Find my resources</button></div>
+      <div class="bar"><button class="primary"><i class="fa-solid fa-magnifying-glass"></i> Find my resources</button></div>
     </form>
     <ul id="found" class="found"></ul>
     <label class="check"><input id="identity" type="checkbox"> Tell the agent who I am <span class="hint">M4, step 16</span></label>
@@ -334,11 +321,9 @@ function saveCfg(patch) {
 }
 
 async function findResources(quiet) {
-  const initials = $("initials").value.trim().toLowerCase();
-  localStorage.setItem("initials", initials);
   if (!quiet) $("found").innerHTML = '<li class="muted"><i class="fa-solid fa-spinner fa-spin"></i> Looking…</li>';
   try {
-    const r = await fetch("lookup?initials=" + encodeURIComponent(initials)), d = await r.json();
+    const r = await fetch("lookup"), d = await r.json();
     if (!r.ok) throw new Error(d.error);
     const relogin = ["user_pool_id", "client_id"].some(k => d.found[k] && cfg[k] !== d.found[k]);
     saveCfg(d.found); S.looked = true;
@@ -646,7 +631,6 @@ function render() {
     $("loginErr").innerHTML = "";
   }
 }
-$("initials").value = localStorage.getItem("initials") || "";
 render();
 findResources(true);   // re-check on every visit, so resources made in later labs show up by themselves
 </script>
@@ -656,14 +640,13 @@ findResources(true);   // re-check on every visit, so resources made in later la
 
 
 if __name__ == "__main__":  # self-check of paging + picking, no AWS needed
-    pages = iter([{"Items": [{"Name": "a"}], "Next": "t"}, {"Items": [{"Name": "Refund-Pool-AMG"}]}])
+    pages = iter([{"Items": [{"Name": "a"}], "Next": "t"}, {"Items": [{"Name": "Refund-Pool"}]}])
     items = list(_pages(lambda **kw: next(pages), "Items", "Next", "Next"))
-    assert _pick(items, "Name", "refund-pool-amg", "amg") == ({"Name": "Refund-Pool-AMG"}, None)
-    assert _pick(items, "Name", "refund-pool-xyz", "xyz") == (None, "no refund-pool-xyz yet")
-    assert _pick([{"name": "refund-gw-jwt-amg"}], "name", "refund_gw_jwt_amg", "amg") == ({"name": "refund-gw-jwt-amg"}, None)
-    assert _pick(items, "Name", "refund-pool-", "") == (None, "2 found, type your initials to choose")
-    assert _pick(items[:1], "Name", "refund-pool-", "") == ({"Name": "a"}, None)
-    assert _pick([], "Name", "refund-pool-", "") == (None, "none yet")
+    assert _pick(items, "Name", "refund-pool") == ({"Name": "Refund-Pool"}, None)
+    assert _pick(items, "Name", "refund-tester") == (None, "no refund-tester yet")
+    assert _pick([{"name": "refund-gw-jwt"}], "name", "refund_gw_jwt") == ({"name": "refund-gw-jwt"}, None)
+    assert _pick([{"name": "refund-gw"}], "name", "refund-gw-jwt") == (None, "no refund-gw-jwt yet")
+    assert _pick([], "Name", "refund-pool") == (None, "no refund-pool yet")
     assert GATEWAY_URL.fullmatch("https://refund-gw-abc123.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp")
     assert not GATEWAY_URL.fullmatch("https://evil.example.com/mcp")
     assert not GATEWAY_URL.fullmatch("https://x.gateway.bedrock-agentcore.us-east-1.amazonaws.com.evil.com/mcp")
