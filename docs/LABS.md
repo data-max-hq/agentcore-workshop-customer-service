@@ -1,8 +1,6 @@
 # Labs
 
-Your instructor explains the ideas. This file is just the steps. Do them in order,
-one at a time. After most steps there is a **Check** line: if what you see does not
-match, stop there and fix it before you go on.
+This page just has the steps. Do them in order. If something looks wrong, stop and fix it (or ask for help) before you move on.
 
 ## Before you start
 
@@ -82,38 +80,34 @@ URL). You need nothing on your laptop but a browser.
 3. Open the **Runtime** dropdown and change it to **Python 3.13**. It defaults to
    Node.js, and Python code will not run there. Choose **Create function**.
 
-   **Check:** the **Code** tab shows a file called `lambda_function.py`. If it says
-   `index.mjs`, you picked the wrong runtime: delete the function and start again.
+   If the **Code** tab shows `index.mjs` instead of `lambda_function.py`, you picked
+   the wrong runtime: delete the function and start again.
 
-4. Paste the contents of `chat/lambda_function.py` from this repo over all the
+4. Paste the contents of [`chat/lambda_function.py`](../chat/lambda_function.py) from this repo over all the
    code in `lambda_function.py`. Choose **Deploy**.
 
 5. Go to **Configuration** → **General configuration** → **Edit**. Set **Timeout**
-   to **15** seconds. Save.
+   to **30** seconds. Save.
 
 6. Give the tester permission to find your resources:
    1. Go to **Configuration** → **Permissions**.
    2. Click the **role name** → **Add permissions** → **Create inline policy** →
       **JSON**.
-   3. Paste the contents of `chat/lambda_policy.json` from this repo.
+   3. Paste the contents of [`chat/lambda_policy.json`](../chat/lambda_policy.json) from this repo.
    4. Choose **Next**, name it `chat-ui-lookup`, and create it.
 
    > This only lets the app read the names of your pool, harness and gateway, so
    > you never have to copy IDs into it.
 
 7. Make the tester reachable from your browser:
-   1. Back in Lambda, go to **Configuration** → **Function URL** → **Create function
-      URL**. Choose auth type **NONE**. Save.
+   1. Back in Lambda, go to **Configuration** → **Function URL** → **Edit**. Choose auth type **NONE**. Save.
    2. Go to **Configuration** → **Permissions**, scroll to **Resource-based policy
       statements**, and choose **Add permissions**.
    3. Choose **Function URL**, auth type **NONE**. Save.
 
-   **Check:** the list now has two statements, one for `lambda:InvokeFunctionUrl`
-   and one for `lambda:InvokeFunction`.
-
-   > A public function URL needs both. With only one, the page shows `Forbidden`
-   > and Lambda warns that the URL "is missing permissions required for public
-   > access".
+   > Parts 1 and 3 each add a permission, and a public URL needs both. With only
+   > one, the page shows `Forbidden` and Lambda warns that the URL "is missing
+   > permissions required for public access".
 
 8. Open your tester page:
    1. Go to **Lambda** → **Functions** → `refund_ui_<your initials>`.
@@ -122,9 +116,6 @@ URL). You need nothing on your laptop but a browser.
    3. Click it. The page that opens, titled **AgentCore Chat**, is your
       **tester**. Bookmark it: every lab below says "open the tester" and means
       this page.
-
-   **Check:** the tester page loads. Click **⚙ Settings** to open it: nothing has a
-   tick yet. That is expected.
 
 As you build things in the labs below, they show up under **⚙ Settings** by
 themselves. To check again, open **⚙ Settings** and press **Find my resources**.
@@ -189,12 +180,7 @@ If you share an AWS account with others, type your initials there first.
     `ergin@example.com`, and the same password. Your token will then say your name.
     You will have no orders until you add some to the tools Lambda in M4 (step 3).
 
-    **Check:** the Users list shows `alice`, `bob` and `mateo` (and you, if you
-    added yourself).
-
 11. Open the tester, click **⚙ Settings**, and press **Find my resources**.
-
-    **Check:** **User pool** and **App client** have a tick.
 
 You log in as alice in M2: the tester only shows the login once there is an agent
 to talk to.
@@ -248,19 +234,14 @@ to talk to.
 
 8. In the tester, open **⚙ Settings** and press **Find my resources**.
 
-   **Check:** **Agent (harness)** has a tick, and the login form appears.
-
 9. Log in as **alice** with `Workshop#2026`. The first login asks you to pick a new
    password. Pick one and remember it.
 
-10. Open the panel **What's inside my token?**
-
-    **Check:** it shows `"username": "alice"`. If it shows a long random ID instead,
-    your pool signs in by email: go back to M1 step 3 and make a new pool.
+10. Open the panel **What's inside my token?** It should say `"username": "alice"`.
+    If it shows a long random ID instead, your pool signs in by email: go back to
+    M1 step 3 and make a new pool.
 
 11. Open the **Chat** tab and send **hello**.
-
-    **Check:** the agent replies.
 
 12. Now open your harness in the console and choose **Test Harness**. Send **hello**
     there too.
@@ -356,7 +337,7 @@ Lambda, and a gateway puts them in front of the agent.
 2. Name it `refund_tool_<your initials>`, runtime **Python 3.12** or newer. Choose
    **Create function**.
 
-3. Paste the contents of `tools/lambda_function.py` from this repo over the default
+3. Paste the contents of [`tools/lambda_function.py`](../tools/lambda_function.py) from this repo over the default
    code.
 
    **If you added yourself as a user in M1**, give yourself some orders now. In the
@@ -402,19 +383,16 @@ B-2002, mateo owns M-3001 and M-3002, and you own whatever you added.
 11. Open the gateway, go to **Targets**, and choose **Add target**:
     - Target name: `orders`
     - Target type: **Lambda**, with the function ARN from step 5
-    - Tool schema: paste `tools/tool-schema.json` from this repo
+    - Tool schema: paste [`tools/tool-schema.json`](../tools/tool-schema.json) from this repo
     - Outbound auth: the gateway IAM role
 
     > If you get "Gateway service is not authorized to perform AssumeRole on
     > Gateway role", wait a minute and add the target again. The new role takes a
     > moment to become usable.
 
-12. Wait for the target to become **READY**.
-
-    **Check:** the gateway's **Targets** list shows `orders` as **READY**. If the
-    list is empty, the target was dropped (this happens when the role was not
-    ready yet): do step 11 again. A gateway with no target gives the agent no
-    tools, and it will not tell you.
+12. Wait for the target to become **READY**. If the **Targets** list is empty, the
+    target was dropped (this happens when the role was not ready yet): do step 11
+    again. With no target the agent has no tools, and it will not tell you.
 
 13. Copy the gateway's **ARN** to your notepad.
 
@@ -436,12 +414,9 @@ B-2002, mateo owns M-3001 and M-3002, and you own whatever you added.
 17. Make sure you are logged in as alice. In the Chat tab, send: **what orders do I
     have?**
 
-    **Check:** alice sees four orders, A-1001 to A-1004.
-
 18. In the Lambda console, open `refund_tool_<your initials>` → **Monitor** → **View
-    CloudWatch logs**, and open the newest log stream.
-
-    **Check:** the log shows a `find_orders` call.
+    CloudWatch logs**, and open the newest log stream. You can see the `find_orders`
+    call there.
 
 ### When memory and the order system disagree
 
@@ -451,7 +426,7 @@ the order system (the tools). They can disagree.
 19. Sign out and log in as **mateo**. Start a **New chat** and ask: **what's the status
     of my webcam order?**
 
-    **Check:** the agent looks up M-3001: delivered, $89, no refund.
+    The agent looks up M-3001: delivered, $89, no refund.
 
 20. **Wait a minute or two**, so long-term memory saves what it just learned (as in
     M3).
@@ -480,7 +455,7 @@ the order system (the tools). They can disagree.
 
 24. Start a **New chat** and ask step 22 again.
 
-    **Check:** it calls the tool and says the order is cancelled.
+    This time it calls the tool and says the order is cancelled.
 
 25. Put M-3001 back: change `"cancelled"` back to `"delivered"` in the Lambda and
     choose **Deploy**.
@@ -493,7 +468,7 @@ the order system (the tools). They can disagree.
 
 26. Log in as **alice** again and send: **show me order B-2001.**
 
-    **Check:** you get nothing back. That is bob's order.
+    You get nothing back. That is bob's order.
 
 It feels secure. It is not. The only reason it worked is that the tester typed
 alice's name into the prompt and the model chose to obey. Nothing checked it. A
@@ -533,8 +508,7 @@ agent's AWS role. It never sees you. M5 fixes that.
    add a target named `orders`, with the **same Lambda** and the **same tool
    schema** as M4.
 
-   **Check:** **Targets** shows `orders` as **READY**. If the list is empty, add
-   it again.
+   If the **Targets** list is empty, add it again.
 
    > The name must be `orders` exactly. Policy rules refer to tools as
    > `<target name>___<tool name>`, so the rules below only work if the target is
@@ -562,31 +536,24 @@ agent's AWS role. It never sees you. M5 fixes that.
       **Create inline policy**.
    5. Switch the policy editor from **Visual** to **JSON**. Delete everything in
       the box.
-   6. Paste the contents of `policies/gateway_temporal_iam.json` from this repo.
+   6. Paste the contents of [`policies/gateway_temporal_iam.json`](../policies/gateway_temporal_iam.json) from this repo.
       It allows one action, `bedrock-agentcore:GetWorkloadAccessToken`, and nothing
       else.
    7. Choose **Next**. Name the policy `policy-sessions` and choose **Create
       policy**.
 
-   **Check:** back on the role's **Permissions** tab, `policy-sessions` is in the
-   list.
-
 5. Copy `refund-gw-jwt`'s **ARN** to your notepad.
 
 6. In the tester, open **⚙ Settings** and press **Find my resources**.
-
-   **Check:** **Gateway (Tools tab)** has a tick, and the **Tools** tab works.
 
 ### See the open door
 
 7. Logged in as alice, open the **Tools** tab. Call `orders___find_orders` with
    `customer_id` = `alice`.
 
-   **Check:** you get alice's orders.
-
 8. Call it again with `customer_id` = `bob`.
 
-   **Check:** you get bob's orders. **That is the problem.** There is no guard yet.
+   You get bob's orders. **That is the problem.** There is no guard yet.
 
 ### Add the guard
 
@@ -663,23 +630,20 @@ agent's AWS role. It never sees you. M5 fixes that.
        what it would have done and lets everything through.)
     5. Save and wait for the gateway to be **READY** again.
 
-    **Check:** the gateway details show your policy engine, mode **ENFORCE**.
-
 ### Show that the guard works
 
 Stay logged in as **alice** and use the Tools tab for each step.
 
-13. `find_orders`, `customer_id` = `alice`. **Check:** allowed.
+13. `find_orders`, `customer_id` = `alice`. Allowed.
 
-14. `find_orders`, `customer_id` = `bob`. **Check:** denied.
+14. `find_orders`, `customer_id` = `bob`. Denied.
 
 15. `get_order_transaction`, `customer_id` = `bob`, `order_id` = `B-2001`.
-    **Check:** denied.
+    Denied.
 
-16. `process_refund`, `alice`, `A-1004`, amount `300`. **Check:** denied, over the
-    cap.
+16. `process_refund`, `alice`, `A-1004`, amount `300`. Denied: over the cap.
 
-17. `process_refund`, `alice`, `A-1001`, amount `49`. **Check:** allowed.
+17. `process_refund`, `alice`, `A-1001`, amount `49`. Allowed.
 
 You have shown one allow and three denies.
 
@@ -718,20 +682,19 @@ so it can.
 
 19. Log out, log in as **bob**, open the Tools tab, and click **New session**.
 
-20. `process_refund`, `bob`, `B-2001`, amount `15`. **Check:** denied, you never
+20. `process_refund`, `bob`, `B-2001`, amount `15`. Denied: you never
     looked at it.
 
-21. `get_order_transaction`, `bob`, `B-2001`. **Check:** allowed.
+21. `get_order_transaction`, `bob`, `B-2001`. Allowed.
 
 22. Wait a second (the lookup is recorded just after it returns), then repeat
-    step 20. **Check:** allowed.
+    step 20. Now it is allowed.
 
-23. Click **New session** and repeat step 20 once more. **Check:** denied, because
-    the new session has no history. (The policy decides first, so you see the
+23. Click **New session** and repeat step 20 once more. Denied again,
+    because the new session has no history. (The policy decides first, so you see the
     deny, not the Lambda saying the order is already refunded.)
 
-**Check:** the same refund was denied, then allowed, then denied again in a new
-session.
+The same refund was denied, then allowed, then denied again in a new session.
 
 ### Guard the agent's door too
 
@@ -802,16 +765,15 @@ login, so there is no `username` to compare. It stays on `refund-gw-jwt` only.
 
 28. Give `refund-gw` the same session permission as `refund-gw-jwt` (step 4): open
     `refund-gw-<your initials>`, find its **IAM Role**, and add the contents of
-    `policies/gateway_temporal_iam.json` as an inline policy named `policy-sessions`.
+    [`policies/gateway_temporal_iam.json`](../policies/gateway_temporal_iam.json) as an inline policy named `policy-sessions`.
 
     > This time use the role shown on `refund-gw`, not the one from step 4.
 
 29. Attach the `refund_agent_<your initials>` engine to `refund-gw-<your initials>`,
     mode **ENFORCE**, the same way as step 12. Wait for **READY**.
 
-    **Check:** in the Chat tab, **what orders do I have?** still lists alice's
-    orders. If the agent suddenly cannot find any, step 25 is missing or has the
-    wrong ARN.
+    If the agent can no longer find alice's orders in the Chat tab, step 25 is
+    missing or has the wrong ARN.
 
 ### Show it through the chat
 
@@ -869,7 +831,7 @@ here: you open a few pages and learn what each one tells you.
 2. Go to **CloudWatch** → **GenAI Observability** → **Bedrock AgentCore**. Open your
    harness `refund_<your initials>`, then its **Sessions**, and open the newest one.
 
-   **Check:** you see your request as a **trace**: a list of steps, each with how long
+   Your request shows up as a **trace**: a list of steps, each with how long
    it took.
 
 3. Open the trace and find these steps:
@@ -879,7 +841,7 @@ here: you open a few pages and learn what each one tells you.
      `order_id` the agent sent.
    - the **memory** steps: the agent reading what it remembers about alice.
 
-   **Check:** you can say which step took the longest.
+   Which step took the longest?
 
 4. Go to **Lambda** → `refund_tool_<your initials>` → **Monitor**. The graphs show how
    often the tools ran (**Invocations**), how long they took (**Duration**) and how
