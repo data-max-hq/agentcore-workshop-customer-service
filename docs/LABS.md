@@ -75,15 +75,7 @@ URL). You need nothing on your laptop but a browser.
 
    > This allows the app to read the names of your pool, harness and gateway.
 
-7. Make the tester reachable from your browser:
-   1. Back in Lambda, go to **Configuration** → **Function URL** → **Edit**. Choose auth type **NONE**. Save.
-   2. Go to **Configuration** → **Permissions**, scroll to **Resource-based policy
-      statements**, and choose **Add permissions**.
-   3. Choose **Function URL**, auth type **NONE**. Save.
-
-   > Parts 1 and 3 each add a permission, and a public URL needs both. With only
-   > one, the page shows `Forbidden` and Lambda warns that the URL "is missing
-   > permissions required for public access".
+7. Make the tester reachable from your browser: Back in Lambda, go to **Configuration** → **Function URL** → **Edit**. Choose auth type **NONE**. Save.
 
 8. Open your tester page:
    1. Go to **Lambda** → **Functions** → `refund_ui`.
@@ -119,12 +111,10 @@ themselves. To check again, open **⚙ Settings** and press **Find my resources*
    > need to compare that username to `alice`, and a random ID will never match.
    > Sign in by user name and the token says `alice`.
 
-4. Cognito now asks for a required attribute. Choose **email**. A required
-   attribute is not a sign-in option, so your username stays `alice`.
+4. Turn **self-registration off**. You will add the users yourself.
+6. Cognito now asks for a required attribute. Choose **email**. 
 
-5. Turn **self-registration off**. You will add the users yourself.
-
-6. Name the pool `refund-pool` and create it.
+5. Name the pool `refund-pool` and create it.
 
 7. On the pool's overview page, copy the **User pool ID** (it looks like
    `us-east-1_AbCdEf123`) to your notepad.
@@ -133,7 +123,7 @@ themselves. To check again, open **⚙ Settings** and press **Find my resources*
 
 8. Open **App clients**, then your client. Copy the **Client ID** to your notepad.
 
-9. Edit the client and turn on **ALLOW_USER_PASSWORD_AUTH** under authentication
+9. Edit the client and turn on "Sign in with username and password: ALLOW_USER_PASSWORD_AUTH" under authentication
    flows. Save. The tester needs it.
 
 ### Add the users
@@ -320,7 +310,7 @@ B-2002, mateo owns M-3001 and M-3002.
 
 7. Name it `refund-gw`. Protocol: **MCP**.
 
-8. Set inbound auth to **AWS IAM**.
+8. Set inbound auth to **Use IAM permissions**.
 
 9. For permissions, let it create a new service role.
 
